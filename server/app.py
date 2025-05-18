@@ -9,6 +9,7 @@ from flask import Flask, jsonify, request
 
 from server.algos import algos
 from server.data_filter import operations_callback
+from server.logger import logger
 
 app = Flask(__name__)
 
