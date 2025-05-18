@@ -1,3 +1,5 @@
+import os
+import logging
 import sys
 import signal
 import threading
@@ -12,6 +14,21 @@ from server.data_filter import operations_callback
 from server.logger import logger
 
 app = Flask(__name__)
+
+# ───────────────────────────────────────────────────────
+# Configure logging based on Flask’s debug flag
+# ───────────────────────────────────────────────────────
+
+# 1) check Flask’s own DEBUG config (set by flask --debug run)
+debug_mode = app.config.get("DEBUG", False)
+
+# 2) fallback to the FLASK_DEBUG env var if needed
+if not debug_mode:
+    debug_env = os.environ.get("FLASK_DEBUG", "0")
+    debug_mode = debug_env.lower() in ("1", "true", "yes")
+
+# 3) apply level to your module logger
+logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
 
 stream_stop_event = threading.Event()
 stream_thread = threading.Thread(
