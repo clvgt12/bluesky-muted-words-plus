@@ -72,13 +72,12 @@ def get_feed_skeleton():
         return 'Unsupported algorithm', 400
 
     # Example of how to check auth if giving user-specific results:
-    """
     from server.auth import AuthorizationError, validate_auth
     try:
         requester_did = validate_auth(request)
+        logger.debug(f'validate_auth() returned Requester DID: {requester_did}')
     except AuthorizationError:
         return 'Unauthorized', 401
-    """
 
     try:
         cursor = request.args.get('cursor', default=None, type=str)
