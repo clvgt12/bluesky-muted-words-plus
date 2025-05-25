@@ -22,7 +22,12 @@ class SubscriptionState(BaseModel):
     service = peewee.CharField(unique=True)
     cursor = peewee.BigIntegerField()
 
+class UserLists(BaseModel):
+    uri = peewee.CharField(index=True)
+    white_list = peewee.CharField()
+    black_list = peewee.CharField()
+    modified_at = peewee.DateTimeField()
 
 if db.is_closed():
     db.connect()
-    db.create_tables([Post, SubscriptionState])
+    db.create_tables([Post, SubscriptionState, UserLists])
