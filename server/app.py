@@ -48,7 +48,25 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 @app.route('/')
 def index():
-    return 'ATProto Feed Generator powered by The AT Protocol SDK for Python (https://github.com/MarshalX/atproto).'
+    """
+    Root endpoint now calls feed.handler(). Clients can pass:
+      - cursor: optional pagination cursor (string)
+      - limit:  optional int, max number of posts to return
+    """
+    from server.algos.feed import handler
+    # 2) Read query params
+    cursor = request.args.get('cursor', default=None, type=str)
+    limit  = request.args.get('limit',  default=20,    type=int)
+
+    # 3) Call your feed handler
+    try:
+        body = handler(cursor, limit)
+    except ValueError as e:
+        # invalid cursor format
+        return str(e), 400
+
+    # 4) Return the dict as a JSON response
+    return jsonify(body)
 
 
 @app.route('/.well-known/did.json', methods=['GET'])
