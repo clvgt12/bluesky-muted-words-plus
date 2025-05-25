@@ -23,7 +23,7 @@ class SubscriptionState(BaseModel):
     cursor = peewee.BigIntegerField()
 
 class UserLists(BaseModel):
-    uri = peewee.CharField(index=True)
+    did = peewee.CharField(index=True)
     white_list = peewee.CharField()
     black_list = peewee.CharField()
     modified_at = peewee.DateTimeField()
