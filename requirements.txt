@@ -4,3 +4,10 @@ Flask~=2.3.2
 python-dotenv~=1.0.0
 sentence-transformers~=2.2.2
 huggingface-hub<0.26.0
+Unidecode
+argparse
+beautifulsoup4
+bleach
+contractions
+ftfy
+pytz
