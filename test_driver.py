@@ -17,7 +17,6 @@ from server.database import db, Post, PostVector, UserLists
 
 # ---- Config ----
 load_dotenv()
-model_name = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 DID = os.getenv("DEFAULT_DID", "did:example:1234")
 BSKY_USERNAME = os.getenv("HANDLE","vitalos.us")
 BSKY_PASSWORD = os.getenv("PASSWORD")
@@ -61,7 +60,6 @@ def extract_bluesky_post_text(post_url: str) -> str:
 
 # ---- Step 2: Insert post into DB ----
 def store_post(uri: str, cid: str, cleaned_text: str) -> Post:
-    # model = SentenceTransformer(model_name)
     post = Post.create(uri=uri, cid=cid)
     vector = string_to_vector(cleaned_text, model)
     PostVector.create(
