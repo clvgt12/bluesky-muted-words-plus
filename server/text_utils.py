@@ -33,7 +33,7 @@ def extract_extra_text(record: Union[dict, BaseModel]) -> str:
         return getattr(obj, attr, default) if not isinstance(obj, dict) else obj.get(attr, default)
 
     # --- Facets (inline URLs in text) ---
-    facets = safe_get(record, "facets", [])
+    facets = safe_get(record, "facets") or []
     for facet in facets:
         features = safe_get(facet, "features", [])
         for feature in features:
@@ -111,7 +111,7 @@ def clean_text(string: str) -> str:
     # Final tag stripping
     text = bleach.clean(text, tags=[], strip=True)
 
-    return text
+    return text.lower()
 
 def keyword_match_bias(word_list: List[str], text: str) -> float:
     """
