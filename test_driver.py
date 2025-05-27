@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from server.logger import logger
 from server.text_utils import clean_text, extract_extra_text
-from server.vector import string_to_vector, vector_to_blob, cosine_similarity, score_post
+from server.vector import string_to_vector, vector_to_blob, cosine_similarity, score_post, model
 from server.database import db, Post, PostVector, UserLists
 
 # ---- Config ----
@@ -61,7 +61,7 @@ def extract_bluesky_post_text(post_url: str) -> str:
 
 # ---- Step 2: Insert post into DB ----
 def store_post(uri: str, cid: str, cleaned_text: str) -> Post:
-    model = SentenceTransformer(model_name)
+    # model = SentenceTransformer(model_name)
     post = Post.create(uri=uri, cid=cid)
     vector = string_to_vector(cleaned_text, model)
     PostVector.create(
