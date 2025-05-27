@@ -102,13 +102,13 @@ def score_post(post_vec: np.ndarray,
         if white_bias > 0.0:
             scores["prob_white"] = min(scores["prob_white"] + white_bias, 1.0)
             scores["prob_black"] = max(1.0 - scores["prob_white"], 0.0)
-            logger.debug(f"✅ Whitelist keyword bias +{white_bias:.2f} applied")
+            logger.info(f"✅ Whitelist keyword bias +{white_bias:.2f} applied")
 
         # Apply blacklist bias
         elif black_bias > 0.0:
             scores["prob_black"] = min(scores["prob_black"] + black_bias, 1.0)
             scores["prob_white"] = max(1.0 - scores["prob_black"], 0.0)
-            logger.debug(f"⚠️  Blacklist keyword bias +{black_bias:.2f} applied")
+            logger.info(f"⚠️  Blacklist keyword bias +{black_bias:.2f} applied")
 
     scores["decision"] = classify_post_softmax(scores["prob_white"], scores["prob_black"],
                                                show_thresh=show_thresh,
