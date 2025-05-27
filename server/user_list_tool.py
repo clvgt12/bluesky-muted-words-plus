@@ -12,9 +12,9 @@ from typing import Optional
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
-from database import UserLists, db
-from text_utils import clean_text
-from vector import string_to_vector, vector_to_blob
+from server.database import UserLists, db
+from server.text_utils import clean_text
+from server.vector import string_to_vector, vector_to_blob
 
 load_dotenv()
 model_name = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
@@ -61,12 +61,30 @@ def upsert_lists(did: str, args: argparse.Namespace) -> None:
         }
 
         # 3) Fire the update
-        (
-            UserLists
-            .update(**update_data)
-            .where(UserLists.did == did)
-            .execute()
-        )
+        try:
+            row = UserLists.get(UserLists.did == did)
+            row_modified = {}
+
+            # Update only the kind we’re working on
+            row_modified.update({
+                f"{kind}_text": text,
+                f"{kind}_vector": blob,
+                f"{kind}_dim": dim,
+                "modified_at": datetime.now(timezone.utc),
+            })
+
+            UserLists.update(**row_modified).where(UserLists.did == did).execute()
+        except UserLists.DoesNotExist:
+            # Insert new row
+            insert_data = {
+                "did": did,
+                "modified_at": datetime.now(timezone.utc),
+                f"{kind}_text": text,
+                f"{kind}_vector": blob,
+                f"{kind}_dim": dim,
+            }
+            UserLists.create(**insert_data)
+
 
         # 4) Friendly feedback
         label = kind.replace("_", " ").title()
