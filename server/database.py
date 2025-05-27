@@ -21,6 +21,7 @@ class SubscriptionState(BaseModel):
 
 class PostVector(BaseModel):
     post = peewee.ForeignKeyField(Post, backref='vector', unique=True)
+    post_text = peewee.CharField(null=True, default=None)
     post_vector = peewee.BlobField(null=True, default=None)
     post_dim = peewee.BigIntegerField(null=True, default=None)
 
@@ -36,4 +37,4 @@ class UserLists(BaseModel):
 
 if db.is_closed():
     db.connect()
-    db.create_tables([Post, SubscriptionState, UserLists])
+    db.create_tables([Post, SubscriptionState, PostVector, UserLists])
