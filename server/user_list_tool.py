@@ -14,10 +14,9 @@ from sentence_transformers import SentenceTransformer
 
 from server.database import UserLists, db
 from server.text_utils import clean_text
-from server.vector import string_to_vector, vector_to_blob
+from server.vector import string_to_vector, vector_to_blob, model
 
 load_dotenv()
-model_name = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 default_did = os.getenv("DEFAULT_DID")
 
 # --- CSV reader & vectorizer ---
@@ -39,8 +38,6 @@ def upsert_lists(did: str, args: argparse.Namespace) -> None:
     """
     Slogan: Upsert the whitelist and blacklist (if provided) in one concise loop.
     """
-    model = SentenceTransformer(model_name)
-
     for kind in ("white_list", "black_list"):
         path = getattr(args, kind)
         if not path:
