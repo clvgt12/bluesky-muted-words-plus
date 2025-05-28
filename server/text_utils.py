@@ -14,8 +14,7 @@ from pydantic import BaseModel
 from typing import Any, Dict, List, Optional, Union
 from unidecode import unidecode
 from urllib.parse import urlparse
-
-load_dotenv()
+from server.config import BIAS_WEIGHT
 
 def extract_extra_text(record: Union[dict, BaseModel]) -> str:
     """
@@ -124,15 +123,11 @@ def keyword_match_bias(word_list: List[str], text: str) -> float:
     Returns:
         float: BIAS_WEIGHT if match found, otherwise 0.0
     """
-    try:
-        bias_weight = float(os.getenv("BIAS_WEIGHT", "0.05"))
-    except ValueError:
-        bias_weight = 0.05
 
     text_words = set(re.findall(r'\b\w+\b', text.strip().lower()))
     keywords = set(word.strip().lower() for word in word_list)
 
-    return bias_weight if text_words & keywords else 0.0
+    return BIAS_WEIGHT if text_words & keywords else 0.0
 
 def get_webpage_text(url: str, timeout: float = 3.0) -> str:
     """

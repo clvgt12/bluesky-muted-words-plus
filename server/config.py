@@ -40,3 +40,10 @@ def _get_bool_env_var(value: str) -> bool:
 
 IGNORE_ARCHIVED_POSTS = _get_bool_env_var(os.environ.get('IGNORE_ARCHIVED_POSTS'))
 IGNORE_REPLY_POSTS = _get_bool_env_var(os.environ.get('IGNORE_REPLY_POSTS'))
+
+DEFAULT_DID = os.getenv("DEFAULT_DID")
+MODEL_NAME = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+SHOW_THRESH = float(os.getenv("SHOW_THRESHOLD", 0.75))
+HIDE_THRESH = float(os.getenv("HIDE_THRESHOLD", 0.75))
+BIAS_WEIGHT = float(os.getenv("BIAS_WEIGHT", "0.05"))
+TEMPERATURE = float(os.getenv("SOFTMAX_TEMPERATURE", 1.0))

@@ -12,12 +12,10 @@ from typing import Optional
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
+from server.config import DEFAULT_DID
 from server.database import UserLists, db
 from server.text_utils import clean_text
 from server.vector import string_to_vector, vector_to_blob, model
-
-load_dotenv()
-default_did = os.getenv("DEFAULT_DID")
 
 # --- CSV reader & vectorizer ---
 def read_csv(path: str) -> str:
@@ -124,7 +122,7 @@ def main():
     )
     args = parser.parse_args()
 
-    did = args.did or default_did
+    did = args.did or DEFAULT_DID
     if did is None:
         print("A BlueSky DID must be specified!")
         sys.exit(1)

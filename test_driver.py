@@ -10,17 +10,11 @@ from urllib.parse import urlparse
 from atproto import Client  # install with: pip install atproto
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+from server.config import BSKY_USERNAME, BSKY_PASSWORD, DEFAULT_DID
 from server.logger import logger
 from server.text_utils import clean_text, extract_extra_text
 from server.vector import string_to_vector, vector_to_blob, cosine_similarity, score_post, model
 from server.database import db, Post, PostVector, UserLists
-
-# ---- Config ----
-load_dotenv()
-DID = os.getenv("DEFAULT_DID", "did:example:1234")
-BSKY_USERNAME = os.getenv("HANDLE","vitalos.us")
-BSKY_PASSWORD = os.getenv("PASSWORD")
-SENSITIVITY = 0.80
 
 # ---- Step 1: Extract post text from a Bluesky URL ----
 def extract_bluesky_post_text(post_url: str) -> str:
@@ -72,9 +66,9 @@ def store_post(uri: str, cid: str, cleaned_text: str) -> Post:
 
 # ---- Step 3: Retrieve whitelist & blacklist vectors ----
 def fetch_user_vectors(did: str) -> tuple[np.ndarray, np.ndarray, UserLists]:
-    row = UserLists.get_or_none(UserLists.did == DID)
+    row = UserLists.get_or_none(UserLists.did == DEFAULT_DID)
     if not row:
-        print(f"No UserLists entry for DID: {DID}")
+        print(f"No UserLists entry for DID: {DEFAULT_DID}")
         sys.exit(1)
     white_vec = np.frombuffer(row.white_list_vector, dtype=np.float32, count=row.white_list_dim)
     black_vec = np.frombuffer(row.black_list_vector, dtype=np.float32, count=row.black_list_dim)
@@ -88,14 +82,14 @@ def run_test(post_url: str):
 
     post = store_post(uri=post_url, cid="dummy-cid", cleaned_text=cleaned)
 
-    whitelist_vec, blacklist_vec, row = fetch_user_vectors(DID)
+    whitelist_vec, blacklist_vec, row = fetch_user_vectors(DEFAULT_DID)
     post_vector = post.vector.get()
     post_vec = np.frombuffer(post_vector.post_vector, dtype=np.float32, count=post_vector.post_dim)
 
     score_white = cosine_similarity(post_vec, whitelist_vec)
     score_black = cosine_similarity(post_vec, blacklist_vec)
 
-    row = UserLists.get(UserLists.did == DID)
+    row = UserLists.get(UserLists.did == DEFAULT_DID)
 
     result = score_post(
         post_vec,

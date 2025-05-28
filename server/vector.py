@@ -5,28 +5,21 @@ import logging
 import os
 import numpy as np
 from typing import List, Literal
-from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+from server.config import MODEL_NAME, SHOW_THRESH, HIDE_THRESH, TEMPERATURE
 from server.logger import logger
 from server.text_utils import keyword_match_bias
 
-# Configuration
-
-load_dotenv()
-model_name = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-model = SentenceTransformer(model_name)
-show_thresh = float(os.getenv("SHOW_THRESHOLD", 0.75))
-hide_thresh = float(os.getenv("HIDE_THRESHOLD", 0.75))
-temperature = float(os.getenv("SOFTMAX_TEMPERATURE", 1.0))
+model = SentenceTransformer(MODEL_NAME)
 
 # Enforce limits
-show_thresh = min(max(show_thresh, 0.0), 1.0)
-hide_thresh = min(max(hide_thresh, 0.0), 1.0)
+SHOW_THRESH = min(max(SHOW_THRESH, 0.0), 1.0)
+HIDE_THRESH = min(max(HIDE_THRESH, 0.0), 1.0)
 
 # Clamp temperature to safe minimum value
-if temperature <= 0.0:
+if TEMPERATURE <= 0.0:
     logger.error("⚠️  SOFTMAX_TEMPERATURE must be > 0. Defaulting to 1.0.")
-    temperature = 1.0
+    TEMPERATURE = 1.0
 
 def words_to_vector(words: List[str], model: SentenceTransformer) -> np.ndarray:
     text = " ".join(words)
@@ -53,7 +46,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 def softmax_similarity_scores(post_vec: np.ndarray,
                               white_vec: np.ndarray,
                               black_vec: np.ndarray,
-                              temperature: float = temperature) -> dict:
+                              temperature: float = TEMPERATURE) -> dict:
     s_white = cosine_similarity(post_vec, white_vec)
     s_black = cosine_similarity(post_vec, black_vec)
 
@@ -69,8 +62,8 @@ def softmax_similarity_scores(post_vec: np.ndarray,
     }
 
 def classify_post_softmax(prob_white: float, prob_black: float,
-                          show_thresh: float = show_thresh,
-                          hide_thresh: float = hide_thresh) -> Literal["SHOW", "HIDE", "AMBIGUOUS"]:
+                          show_thresh: float = SHOW_THRESH,
+                          hide_thresh: float = HIDE_THRESH) -> Literal["SHOW", "HIDE", "AMBIGUOUS"]:
     if prob_white >= show_thresh:
         return "SHOW"
     elif prob_black >= hide_thresh:
@@ -84,15 +77,15 @@ def score_post(post_vec: np.ndarray,
                post_text: str = None,
                whitelist_words: List[str] = [],
                blacklist_words: List[str] = [],
-               show_thresh: float = show_thresh,
-               hide_thresh: float = hide_thresh,
-               temperature: float = temperature) -> dict:
+               show_thresh: float = SHOW_THRESH,
+               hide_thresh: float = HIDE_THRESH,
+               temperature: float = TEMPERATURE) -> dict:
     """
     Softmax-based scoring to classify post as SHOW / HIDE / AMBIGUOUS.
     Optionally biases the probability based on keyword matches.
     Returns a dict with softmax scores, raw cosine scores, and final decision.
     """
-    scores = softmax_similarity_scores(post_vec, whitelist_vec, blacklist_vec, temperature=temperature)
+    scores = softmax_similarity_scores(post_vec, whitelist_vec, blacklist_vec, temperature=TEMPERATURE)
 
     if post_text:
         white_bias = keyword_match_bias(whitelist_words, post_text)
@@ -115,6 +108,6 @@ def score_post(post_vec: np.ndarray,
             logger.info(f"⚠️  Blacklist keyword bias +{black_bias:.2f} applied")
 
     scores["decision"] = classify_post_softmax(scores["prob_white"], scores["prob_black"],
-                                               show_thresh=show_thresh,
-                                               hide_thresh=hide_thresh)
+                                               show_thresh=SHOW_THRESH,
+                                               hide_thresh=HIDE_THRESH)
     return scores
