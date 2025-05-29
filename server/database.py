@@ -2,6 +2,9 @@ from datetime import datetime, timezone
 
 import peewee
 
+import numpy as np
+from server.config import DEFAULT_DID
+
 db = peewee.SqliteDatabase('feed_database.db')
 
 class BaseModel(peewee.Model):
@@ -38,3 +41,13 @@ class UserLists(BaseModel):
 if db.is_closed():
     db.connect()
     db.create_tables([Post, SubscriptionState, PostVector, UserLists])
+
+def fetch_user_lists_fields(did: str) -> tuple[str, np.ndarray, int, str, np.ndarray, int]:
+    try:
+        row = UserLists.get_or_none(UserLists.did == DEFAULT_DID)
+    except UserLists.DoesNotExist:
+        logger.error(f'🚫 ERROR! white and black lists do not exist for user {user_did} !!!')
+        return None
+    white_vec = np.frombuffer(row.white_list_vector, dtype=np.float32, count=row.white_list_dim)
+    black_vec = np.frombuffer(row.black_list_vector, dtype=np.float32, count=row.black_list_dim)
+    return row.white_list_text, white_vec, row.white_list_dim, row.black_list_text, black_vec, row.black_list_dim
