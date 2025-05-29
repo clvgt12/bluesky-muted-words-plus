@@ -92,7 +92,7 @@ def score_post(post_vec: np.ndarray,
         black_bias = keyword_match_bias(blacklist_words, post_text)
         # If both biases apply
         if white_bias > 0.0 and black_bias > 0.0:
-            logger.info(f"⚖️  Both whitelist (+{white_bias:.2f}) and blacklist (+{black_bias:.2f}) keyword biases matched")
+            logger.debug(f"⚖️  Both whitelist (+{white_bias:.2f}) and blacklist (+{black_bias:.2f}) keyword biases matched")
             net_bias = white_bias - black_bias
             scores["prob_white"] = np.clip(scores["prob_white"] + net_bias, 0.0, 1.0)
             scores["prob_black"] = 1.0 - scores["prob_white"]
@@ -100,12 +100,12 @@ def score_post(post_vec: np.ndarray,
         elif white_bias > 0.0:
             scores["prob_white"] = min(scores["prob_white"] + white_bias, 1.0)
             scores["prob_black"] = max(1.0 - scores["prob_white"], 0.0)
-            logger.info(f"✅ Whitelist keyword bias +{white_bias:.2f} applied")
+            logger.debug(f"✅ Whitelist keyword bias +{white_bias:.2f} applied")
         # Apply blacklist bias
         elif black_bias > 0.0:
             scores["prob_black"] = min(scores["prob_black"] + black_bias, 1.0)
             scores["prob_white"] = max(1.0 - scores["prob_black"], 0.0)
-            logger.info(f"⚠️  Blacklist keyword bias +{black_bias:.2f} applied")
+            logger.debug(f"⚠️  Blacklist keyword bias +{black_bias:.2f} applied")
 
     scores["decision"] = classify_post_softmax(scores["prob_white"], scores["prob_black"],
                                                show_thresh=SHOW_THRESH,
