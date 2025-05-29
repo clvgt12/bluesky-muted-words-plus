@@ -71,7 +71,7 @@ def extract_extra_text(record: Union[dict, BaseModel]) -> str:
     extract_from_embed(embed)
 
     if extras:
-        logger.info(f"🧠 Extracted extra text: {extras}")
+        logger.debug(f"🧠 Extracted extra text: {extras}")
 
     return " ".join(extras)
 
@@ -165,5 +165,5 @@ def get_webpage_text(url: str, timeout: float = 3.0) -> str:
         return clean_text(soup.get_text(separator=" ", strip=True))
 
     except Exception as e:
-        logger.warning(f"Failed to fetch webpage text from {url}: {e}")
+        logger.error(f"Failed to fetch webpage text from {url}: {e}")
         return ""
