@@ -5,9 +5,10 @@ from collections import defaultdict
 from atproto import models
 
 from server import config
+from server.database import db, Post, PostVector, fetch_user_lists_fields
 from server.logger import logger
-from server.database import db, Post
-
+from server.text_utils import clean_text, extract_extra_text
+from server.vector import model, string_to_vector, score_post
 
 def is_archive_post(record: 'models.AppBskyFeedPost.Record') -> bool:
     # Sometimes users will import old posts from Twitter/X which con flood a feed with
@@ -48,42 +49,60 @@ def operations_callback(ops: defaultdict) -> None:
 
     # for example, let's create our custom feed that will contain all posts that contains 'python' related text
 
+    # Lookup user-specific whitelist and blacklist vectors
+    user_did = config.DEFAULT_DID    # Let's use DEFAULT_DID for now...
+    white_list_text, white_list_vector, white_list_dim, black_list_text, black_list_vector, black_list_dim = fetch_user_lists_fields(user_did)
+    white_list_words=white_list_text.split()
+    black_list_words=black_list_text.split()
+
     posts_to_create = []
     for created_post in ops[models.ids.AppBskyFeedPost]['created']:
         author = created_post['author']
         record = created_post['record']
 
-        post_with_images = isinstance(record.embed, models.AppBskyEmbedImages.Main)
-        post_with_video = isinstance(record.embed, models.AppBskyEmbedVideo.Main)
-        inlined_text = record.text.replace('\n', ' ')
-
-        # print all texts just as demo that data stream works
-        logger.debug(
-            f'NEW POST '
-            f'[CREATED_AT={record.created_at}]'
-            f'[AUTHOR={author}]'
-            f'[WITH_IMAGE={post_with_images}]'
-            f'[WITH_VIDEO={post_with_video}]'
-            f': {inlined_text}'
-        )
+        uri = created_post['uri']
+        cid = created_post['cid']
 
         if should_ignore_post(created_post):
             continue
 
-        # only python-related posts
-        if 'python' in record.text.lower():
+        # Combine primary text and embedded alt text (e.g. image descriptions)
+        combined_text = record.text
+        extra_text = extract_extra_text(record)
+        if extra_text:
+            combined_text += " " + " ".join(extra_text)
+
+        cleaned = clean_text(combined_text)
+        post_vector = string_to_vector(cleaned, model)
+
+        scores = score_post(
+            post_vector,
+            white_list_vector,
+            black_list_vector,
+            post_text=cleaned,
+            whitelist_words=white_list_words,
+            blacklist_words=black_list_words,
+        )
+
+        if scores["decision"] in {"SHOW", "AMBIGUOUS"}:
             reply_root = reply_parent = None
             if record.reply:
                 reply_root = record.reply.root.uri
                 reply_parent = record.reply.parent.uri
 
             post_dict = {
-                'uri': created_post['uri'],
-                'cid': created_post['cid'],
+                'uri': uri,
+                'cid': cid,
                 'reply_parent': reply_parent,
                 'reply_root': reply_root,
+                'post_text': cleaned,
+                'post_vector': post_vector.tobytes(),
+                'post_dim': len(post_vector)
             }
             posts_to_create.append(post_dict)
+            logger.debug(f"✅ Included post {created_post['uri']} ({scores['decision']})")
+        else:
+            logger.debug(f"🚫 Filtered out post {created_post['uri']} ({scores['decision']})")
 
     posts_to_delete = ops[models.ids.AppBskyFeedPost]['deleted']
     if posts_to_delete:
