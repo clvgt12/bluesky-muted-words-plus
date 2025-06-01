@@ -12,10 +12,12 @@ from atproto import Client
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from server.config import BSKY_USERNAME, BSKY_PASSWORD, DEFAULT_DID
-from server.logger import logger
+from server.logger import setup_logger
 from server.text_utils import clean_text, extract_extra_text
 from server.vector import string_to_vector, vector_to_blob, cosine_similarity, score_post, model
 from server.database import db, Post, PostVector, UserLists
+
+logger = setup_logger(__name__)
 
 # ---- Step 1: Extract post text from a Bluesky URL ----
 def extract_bluesky_post_text(post_url: str) -> str:

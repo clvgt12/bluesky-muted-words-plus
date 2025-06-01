@@ -1,5 +1,4 @@
 import os
-import logging
 import sys
 import signal
 import threading
@@ -11,7 +10,7 @@ from flask import Flask, jsonify, request
 
 from server.algos import algos
 from server.data_filter import operations_callback
-from server.logger import logger
+from server.logger import setup_logger
 
 app = Flask(__name__)
 
@@ -19,16 +18,11 @@ app = Flask(__name__)
 # Configure logging based on Flask’s debug flag
 # ───────────────────────────────────────────────────────
 
-# 1) check Flask’s own DEBUG config (set by flask --debug run)
-debug_mode = app.config.get("DEBUG", False)
+logger = setup_logger(__name__)  # 👈 This tags the logger with the module path
 
-# 2) fallback to the FLASK_DEBUG env var if needed
-if not debug_mode:
-    debug_env = os.environ.get("FLASK_DEBUG", "0")
-    debug_mode = debug_env.lower() in ("1", "true", "yes")
-
-# 3) apply level to your module logger
-logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
+# ───────────────────────────────────────────────────────
+# Configure and run data stream in a separate thread
+# ───────────────────────────────────────────────────────
 
 stream_stop_event = threading.Event()
 stream_thread = threading.Thread(
@@ -36,15 +30,16 @@ stream_thread = threading.Thread(
 )
 stream_thread.start()
 
-
 def sigint_handler(*_):
     print('Stopping data stream...')
     stream_stop_event.set()
     sys.exit(0)
 
-
 signal.signal(signal.SIGINT, sigint_handler)
 
+# ───────────────────────────────────────────────────────
+# Define REST API and enter event loop
+# ───────────────────────────────────────────────────────
 
 @app.route('/')
 def index():

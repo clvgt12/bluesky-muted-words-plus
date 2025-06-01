@@ -7,8 +7,10 @@ import numpy as np
 from typing import List, Literal
 from sentence_transformers import SentenceTransformer
 from server.config import MODEL_NAME, SHOW_THRESH, HIDE_THRESH, TEMPERATURE
-from server.logger import logger
+from server.logger import setup_logger
 from server.text_utils import keyword_match_bias
+
+logger = setup_logger(__name__)
 
 model = SentenceTransformer(MODEL_NAME)
 

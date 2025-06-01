@@ -6,9 +6,12 @@ from atproto import models
 
 from server import config
 from server.database import db, Post, PostVector, fetch_user_lists_fields
-from server.logger import logger
+from server.logger import setup_logger
 from server.text_utils import clean_text, extract_extra_text
 from server.vector import model, string_to_vector, score_post
+
+logger = setup_logger(__name__)
+
 
 def is_archive_post(record: 'models.AppBskyFeedPost.Record') -> bool:
     # Sometimes users will import old posts from Twitter/X which con flood a feed with
