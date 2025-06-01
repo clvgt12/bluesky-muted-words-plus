@@ -40,6 +40,8 @@ class UserLists(BaseModel):
 
 if db.is_closed():
     db.connect()
+    # Drop only the specified tables
+    db.drop_tables([PostVector, SubscriptionState, Post])  # Drop in reverse dependency order
     db.create_tables([Post, SubscriptionState, PostVector, UserLists])
 
 def fetch_user_lists_fields(did: str) -> tuple[str, np.ndarray, int, str, np.ndarray, int]:

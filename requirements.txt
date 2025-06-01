@@ -11,3 +11,4 @@ bleach
 contractions
 ftfy
 pytz
+spacy>=3.7.2
