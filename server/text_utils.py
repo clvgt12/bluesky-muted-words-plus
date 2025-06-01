@@ -6,6 +6,7 @@ import httpx
 import logging
 import os
 import re
+import spacy
 from bs4 import BeautifulSoup
 from html import unescape
 from dotenv import load_dotenv
@@ -15,6 +16,8 @@ from typing import Any, Dict, List, Optional, Union
 from unidecode import unidecode
 from urllib.parse import urlparse
 from server.config import BIAS_WEIGHT
+
+nlp = spacy.load("en_core_web_sm")
 
 def extract_extra_text(record: Union[dict, BaseModel]) -> str:
     """
@@ -75,7 +78,6 @@ def extract_extra_text(record: Union[dict, BaseModel]) -> str:
 
     return " ".join(extras)
 
-# Clean text
 def clean_text(string: str) -> str:
     """
     Clean and normalize input text:
@@ -85,6 +87,10 @@ def clean_text(string: str) -> str:
     - Remove URLs
     - Remove punctuation
     - Collapse excess whitespace
+    - Remove stopwords
+    - Lemmatize nouns, verbs, adjectives, adverbs
+    - Remove duplicated words
+    Return string
     """
     # Strip HTML elements
     soup = BeautifulSoup(string, "html.parser")
@@ -104,13 +110,31 @@ def clean_text(string: str) -> str:
     # Remove punctuation (keep alphanumerics and whitespace)
     text = re.sub(r"[^\w\s]", "", text)
 
-    # Collapse multiple whitespace
-    text = re.sub(r"\s+", " ", text).strip()
+    # Collapse multiple whitespace and lowercase
+    text = re.sub(r"\s+", " ", text).strip().lower()
 
-    # Final tag stripping
+    # Final tag stripping (redundant but safe)
     text = bleach.clean(text, tags=[], strip=True)
 
-    return text.lower()
+    # Tokenize, lemmatize, remove stopwords, normalize POS
+    doc = nlp(text)
+    cleaned_tokens = [
+        token.lemma_
+        for token in doc
+        if token.is_alpha
+        and not token.is_stop
+        and token.pos_ in {"NOUN", "VERB", "ADJ", "ADV"}
+    ]
+
+    # Remove duplicated words
+    seen = set()
+    deduped_tokens = []
+    for word in cleaned_tokens:
+        if word not in seen:
+            seen.add(word)
+            deduped_tokens.append(word)
+    
+    return " ".join(deduped_tokens)
 
 def keyword_match_bias(word_list: List[str], text: str) -> float:
     """
