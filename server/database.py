@@ -1,3 +1,4 @@
+# server/database.py
 from datetime import datetime, timezone
 
 import peewee
@@ -16,7 +17,10 @@ class Post(BaseModel):
     cid = peewee.CharField()
     reply_parent = peewee.CharField(null=True, default=None)
     reply_root = peewee.CharField(null=True, default=None)
-    indexed_at = peewee.DateTimeField(default=lambda: datetime.now(timezone.utc))
+    indexed_at = peewee.DateTimeField(
+        default=lambda: datetime.now(timezone.utc),
+        formats=["%Y-%m-%d %H:%M:%S.%f%z", "%Y-%m-%d %H:%M:%S%z"],
+    )
 
 class SubscriptionState(BaseModel):
     service = peewee.CharField(unique=True)
