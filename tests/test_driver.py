@@ -1,13 +1,14 @@
+#!/usr/bin/env python3
 #
 # test_driver.py
 #
-import logging
-import os
+import argparse
+import json
 import sys
 import numpy as np
 from pprint import pprint
 from urllib.parse import urlparse
-from atproto import Client  # install with: pip install atproto
+from atproto import Client
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from server.config import BSKY_USERNAME, BSKY_PASSWORD, DEFAULT_DID
@@ -24,12 +25,10 @@ def extract_bluesky_post_text(post_url: str) -> str:
     parsed = urlparse(post_url)
     segments = parsed.path.strip("/").split("/")
     if len(segments) != 4 or segments[0] != "profile" or segments[2] != "post":
-        raise ValueError("Unsupported URL format. Expected format: https://bsky.app/profile/{handle}/post/{post_id}")
+        raise ValueError("Unsupported URL format. Expected: https://bsky.app/profile/{handle}/post/{post_id}")
 
     handle = segments[1]
     post_id = segments[3]
-
-    # 🔧 Convert handle to DID
     did = client.com.atproto.identity.resolve_handle({"handle": handle})["did"]
     at_uri = f"at://{did}/app.bsky.feed.post/{post_id}"
 
@@ -38,7 +37,6 @@ def extract_bluesky_post_text(post_url: str) -> str:
         raise ValueError(f"No post found for URI: {at_uri}")
 
     post_record = posts["posts"][0]["record"]
-    # Pretty-print the raw embed block
     try:
         record_dict = post_record.model_dump() if hasattr(post_record, "model_dump") else post_record
         print("\n=== Raw EMBED Dump ===")
@@ -46,13 +44,14 @@ def extract_bluesky_post_text(post_url: str) -> str:
         print("======================\n")
     except Exception as e:
         print("Failed to dump embed:", e)
-    main_text = post_record.text  # ✅ direct access
-    extra_text = extract_extra_text(post_record)  # works with Pydantic or dict
-    combined = clean_text(f"{main_text} {extra_text}")
 
-    return combined
+    main_text = post_record.text
+    extra_text = extract_extra_text(post_record)
+    text = f"{main_text} {extra_text}"
+    logger.info(f"Combined main and extra text: {text}")
+    return clean_text(text)
 
-# ---- Step 2: Insert post into DB ----
+# ---- Store post in DB and vectorize ----
 def store_post(uri: str, cid: str, cleaned_text: str) -> Post:
     post = Post.create(uri=uri, cid=cid)
     vector = string_to_vector(cleaned_text, model)
@@ -64,7 +63,7 @@ def store_post(uri: str, cid: str, cleaned_text: str) -> Post:
     )
     return post
 
-# ---- Step 3: Retrieve whitelist & blacklist vectors ----
+# ---- Retrieve user whitelist and blacklist vectors ----
 def fetch_user_vectors(did: str) -> tuple[np.ndarray, np.ndarray, UserLists]:
     row = UserLists.get_or_none(UserLists.did == DEFAULT_DID)
     if not row:
@@ -74,22 +73,19 @@ def fetch_user_vectors(did: str) -> tuple[np.ndarray, np.ndarray, UserLists]:
     black_vec = np.frombuffer(row.black_list_vector, dtype=np.float32, count=row.black_list_dim)
     return white_vec, black_vec, row
 
-# ---- Main driver logic ----
-def run_test(post_url: str):
-    print(f"Fetching and analyzing: {post_url}")
+# ---- Main test function ----
+def run_test(post_url: str, test_description: str, expected_classification: str):
+    print(f"🔍 {test_description}")
+    print(f"🔗 {post_url}")
+
     cleaned = extract_bluesky_post_text(post_url)
-    print(f"Cleaned Text: {cleaned}\n")
+    print(f"\n🧹 Cleaned Text:\n{cleaned}\n")
 
     post = store_post(uri=post_url, cid="dummy-cid", cleaned_text=cleaned)
 
     whitelist_vec, blacklist_vec, row = fetch_user_vectors(DEFAULT_DID)
     post_vector = post.vector.get()
     post_vec = np.frombuffer(post_vector.post_vector, dtype=np.float32, count=post_vector.post_dim)
-
-    score_white = cosine_similarity(post_vec, whitelist_vec)
-    score_black = cosine_similarity(post_vec, blacklist_vec)
-
-    row = UserLists.get(UserLists.did == DEFAULT_DID)
 
     result = score_post(
         post_vec,
@@ -100,16 +96,35 @@ def run_test(post_url: str):
         blacklist_words=row.black_list_text.split()
     )
 
-    print(f"Raw cosine (whitelist): {result['raw_white']:.3f}")
-    print(f"Raw cosine (blacklist): {result['raw_black']:.3f}")
-    print(f"Softmax P(whitelist):   {result['prob_white']:.3f}")
-    print(f"Softmax P(blacklist):   {result['prob_black']:.3f}")
-    print(f"→ Classification:       {result['decision']}")
+    expected = expected_classification.upper()
+    observed = result["decision"]
+    passed = expected == observed
 
+    output = {
+        "test_description": test_description,
+        "url": post_url,
+        "expected_classification": expected,
+        "observed_classification": observed,
+        "cosine": {
+            "whitelist": round(result["raw_white"], 4),
+            "blacklist": round(result["raw_black"], 4)
+        },
+        "softmax": {
+            "whitelist": round(result["prob_white"], 4),
+            "blacklist": round(result["prob_black"], 4)
+        },
+        "result": "PASS" if passed else "FAIL"
+    }
 
-# ---- Entry point ----
+    print(json.dumps(output, indent=2))
+    return output
+
+# ---- CLI entrypoint ----
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python test_driver.py <bluesky_post_url>")
-        sys.exit(1)
-    run_test(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Run a test against Bluesky post classifier")
+    parser.add_argument("-u", "--url", required=True, help="Bluesky post URL")
+    parser.add_argument("-d", "--test_description", required=True, help="Test description")
+    parser.add_argument("-c", "--classification", required=True, help="Expected classification (SHOW, HIDE, AMBIGUOUS)")
+    args = parser.parse_args()
+
+    run_test(args.url, args.test_description, args.classification)
