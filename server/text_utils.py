@@ -3,20 +3,20 @@ import bleach
 import contractions
 import ftfy
 import httpx
-import logging
 import os
 import re
 import spacy
 from bs4 import BeautifulSoup
 from html import unescape
 from dotenv import load_dotenv
-from server.logger import logger
+from server.logger import setup_logger
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional, Union
 from unidecode import unidecode
 from urllib.parse import urlparse
 from server.config import BIAS_WEIGHT
 
+logger = setup_logger(__name__)
 nlp = spacy.load("en_core_web_sm")
 
 def extract_extra_text(record: Union[dict, BaseModel]) -> str:

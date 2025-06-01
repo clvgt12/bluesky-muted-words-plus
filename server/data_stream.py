@@ -1,11 +1,10 @@
-import logging
 from collections import defaultdict
-
 from atproto import AtUri, CAR, firehose_models, FirehoseSubscribeReposClient, models, parse_subscribe_repos_message
 from atproto.exceptions import FirehoseError
-
 from server.database import SubscriptionState
-from server.logger import logger
+from server.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 _INTERESTED_RECORDS = {
     models.AppBskyFeedLike: models.ids.AppBskyFeedLike,

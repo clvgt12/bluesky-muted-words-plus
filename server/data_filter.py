@@ -5,9 +5,10 @@ from collections import defaultdict
 from atproto import models
 
 from server import config
-from server.logger import logger
+from server.logger import setup_logger
 from server.database import db, Post
 
+logger = setup_logger(__name__)
 
 def is_archive_post(record: 'models.AppBskyFeedPost.Record') -> bool:
     # Sometimes users will import old posts from Twitter/X which con flood a feed with

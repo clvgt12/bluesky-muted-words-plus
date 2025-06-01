@@ -1,11 +1,12 @@
-import os
+# config.py
 import logging
-
+import os
 from dotenv import load_dotenv
-
-from server.logger import logger
+from server.logger import setup_logger
 
 load_dotenv()
+
+logger = setup_logger(__name__)
 
 SERVICE_DID = os.environ.get('SERVICE_DID')
 HOSTNAME = os.environ.get('HOSTNAME')
