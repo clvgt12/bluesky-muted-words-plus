@@ -23,10 +23,10 @@ if TEMPERATURE <= 0.0:
 
 def words_to_vector(words: List[str], model: SentenceTransformer) -> np.ndarray:
     text = " ".join(words)
-    return model.encode(text).astype(np.float32)
+    return model.encode(text,show_progress_bar=False).astype(np.float32)
 
 def string_to_vector(string: str, model: SentenceTransformer) -> np.ndarray:
-    return model.encode(string).astype(np.float32)
+    return model.encode(string,show_progress_bar=False).astype(np.float32)
 
 def vector_to_blob(vec: np.ndarray) -> bytes:
     return vec.astype(np.float32).tobytes()
