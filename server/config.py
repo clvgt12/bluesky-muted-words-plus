@@ -41,6 +41,8 @@ def _get_bool_env_var(value: str) -> bool:
 IGNORE_ARCHIVED_POSTS = _get_bool_env_var(os.environ.get('IGNORE_ARCHIVED_POSTS'))
 IGNORE_REPLY_POSTS = _get_bool_env_var(os.environ.get('IGNORE_REPLY_POSTS'))
 
+BSKY_USERNAME = os.getenv("HANDLE")
+BSKY_PASSWORD = os.getenv("PASSWORD")
 DEFAULT_DID = os.getenv("DEFAULT_DID")
 MODEL_NAME = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 SHOW_THRESH = float(os.getenv("SHOW_THRESHOLD", 0.75))
