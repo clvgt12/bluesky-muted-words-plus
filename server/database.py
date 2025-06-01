@@ -37,4 +37,6 @@ class UserLists(BaseModel):
 
 if db.is_closed():
     db.connect()
+    # Drop only the specified tables
+    db.drop_tables([PostVector, SubscriptionState, Post])  # Drop in reverse dependency order
     db.create_tables([Post, SubscriptionState, PostVector, UserLists])
