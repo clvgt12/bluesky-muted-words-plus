@@ -4,11 +4,13 @@
 #
 import argparse
 import json
+import subprocess
 import sys
 import numpy as np
 from pprint import pprint
 from urllib.parse import urlparse
 from atproto import Client
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from server.config import BSKY_USERNAME, BSKY_PASSWORD, DEFAULT_DID
@@ -17,9 +19,17 @@ from server.text_utils import clean_text, extract_extra_text
 from server.vector import string_to_vector, vector_to_blob, cosine_similarity, score_post, model
 from server.database import db, Post, PostVector, UserLists
 
+
 logger = setup_logger(__name__)
 
-# ---- Step 1: Extract post text from a Bluesky URL ----
+# Obtain git hash of current commit under test
+def get_git_commit() -> str:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()
+    except Exception:
+        return "unknown"
+
+# Extract post text from a Bluesky URL ----
 def extract_bluesky_post_text(post_url: str) -> str:
     client = Client()
     client.login(BSKY_USERNAME, BSKY_PASSWORD)
@@ -105,16 +115,24 @@ def run_test(post_url: str, test_description: str, expected_classification: str)
     output = {
         "test_description": test_description,
         "url": post_url,
-        "expected_classification": expected,
-        "observed_classification": observed,
-        "cosine": {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "git_commit": get_git_commit(),
+        "model_params": {
+            "show_threshold": result.get("show_threshold", None),
+            "hide_threshold": result.get("hide_threshold", None),
+            "softmax_temperature": result.get("temperature", None),
+            "bias_weight": result.get("bias_weight", None)
+        },
+        "cosine_similarity_results": {
             "whitelist": round(result["raw_white"], 4),
             "blacklist": round(result["raw_black"], 4)
         },
-        "softmax": {
+        "softmax_probability_scores": {
             "whitelist": round(result["prob_white"], 4),
             "blacklist": round(result["prob_black"], 4)
         },
+        "expected_classification": expected,
+        "observed_classification": observed,
         "result": "PASS" if passed else "FAIL"
     }
 
