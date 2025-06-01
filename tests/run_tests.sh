@@ -11,13 +11,15 @@ function run_driver() {
     local result="$3"
     
     ((test_number++))
-    echo $(printf "Running test number %d: %s" "$test_number" "$desc")
+    echo $(printf "Running test number %d:" "$test_number")
     local output=$(python3 -m tests.test_driver --url="$url" --test_description="$desc" --classification="$result" 2>/dev/null)
 
     if echo "$output" | grep -q '"result": "PASS"'; then
         ((pass++))
+        echo "$output" | awk '/^{$/,/^}$/ {print}'
     elif echo "$output" | grep -q '"result": "FAIL"'; then
         ((fail++))
+        echo "$output" | awk '/^{$/,/^}$/ {print}'
     else
         echo "******* ERROR processing test! *******"
     fi
