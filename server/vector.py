@@ -1,12 +1,11 @@
 # vector.py
 # Vector operations using NumPy
 
-import logging
 import os
 import numpy as np
 from typing import List, Literal
 from sentence_transformers import SentenceTransformer
-from server.config import MODEL_NAME, SHOW_THRESH, HIDE_THRESH, TEMPERATURE
+from server.config import MODEL_NAME, SHOW_THRESH, HIDE_THRESH, TEMPERATURE, BIAS_WEIGHT
 from server.logger import setup_logger
 from server.text_utils import keyword_match_bias
 
@@ -60,7 +59,8 @@ def softmax_similarity_scores(post_vec: np.ndarray,
         "prob_white": float(probs[0]),
         "prob_black": float(probs[1]),
         "raw_white": s_white,
-        "raw_black": s_black
+        "raw_black": s_black,
+        "temperature": temperature,
     }
 
 def classify_post_softmax(prob_white: float, prob_black: float,
@@ -112,4 +112,9 @@ def score_post(post_vec: np.ndarray,
     scores["decision"] = classify_post_softmax(scores["prob_white"], scores["prob_black"],
                                                show_thresh=SHOW_THRESH,
                                                hide_thresh=HIDE_THRESH)
+
+    # Pack model hyperparameters within dictionary object
+    scores["show_threshold"] = SHOW_THRESH
+    scores["hide_threshold"] = HIDE_THRESH
+    scores["bias_weight"] = BIAS_WEIGHT
     return scores
