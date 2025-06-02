@@ -2,18 +2,13 @@
 import logging
 import os
 from dotenv import load_dotenv
-from server.logger import setup_logger
 
 load_dotenv()
 
-logger = setup_logger(__name__)
-
 SERVICE_DID = os.environ.get('SERVICE_DID')
 HOSTNAME = os.environ.get('HOSTNAME')
-FLASK_RUN_FROM_CLI = os.environ.get('FLASK_RUN_FROM_CLI')
-
-if FLASK_RUN_FROM_CLI:
-    logger.setLevel(logging.DEBUG)
+FLASK_DEBUG = os.getenv('FLASK_DEBUG', '0').lower() in ("1", "true", "yes")
+FLASK_RUN_FROM_CLI = os.environ.get('FLASK_RUN_FROM_CLI','0').lower() in ("1", "true", "yes")
 
 if not HOSTNAME:
     raise RuntimeError('You should set "HOSTNAME" environment variable first.')
