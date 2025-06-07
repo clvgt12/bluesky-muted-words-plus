@@ -1,0 +1,38 @@
+# Exclude sensitive or unnecessary files from Docker build
+
+# Sensitive
+.env
+.env.*
+*.env
+*.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Git and editor stuff
+.git/
+.gitignore
+*.swp
+*.swo
+*.bak
+.DS_Store
+
+# Streamlit and test output
+.streamlit/
+tests/__pycache__/
+data/*
+!data/user_list.json
+
+# Build and dist
+dist/
+build/
+*.egg-info/

@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: bluesky-muted-words-plus
+    env: docker
+    repo: https://github.com/clvgt12/bluesky-muted-words-plus.git
+    branch: feature/integrate-feed
+    plan: free  # or 'starter' or 'standard' depending on your tier
+    region: oregon
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: HANDLE
+        sync: false  # set this in Render dashboard
+      - key: PASSWORD
+        sync: false  # set this in Render dashboard
+      - key: HOSTNAME
+        value: bluesky-muted-words-plus-lnxg.onrender.com
+      - key: FEED_URI
+        value: at://did:plc:btd7cocvy4na2wyowrpbo64o/app.bsky.feed.generator/bluesky-muted-words-plus
+      - key: RECORD_NAME
+        value: bluesky-muted-words-plus
+      - key: DISPLAY_NAME
+        value: Bluesky Muted Words Plus
+      - key: DESCRIPTION
+        value: powered by The AT Protocol SDK for Python
+      - key: AVATAR_PATH
+        value: ./assets/feed_logo.jpg
+      - key: DEFAULT_DID
+        value: did:plc:btd7cocvy4na2wyowrpbo64o
+      - key: MODEL_NAME
+        value: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      - key: SHOW_THRESHOLD
+        value: "0.750"
+      - key: HIDE_THRESHOLD
+        value: "0.575"
+      - key: BIAS_WEIGHT
+        value: "0.25"
+      - key: SOFTMAX_TEMPERATURE
+        value: "1.0"
+      - key: IGNORE_REPLY_POSTS
+        value: "true"
+      - key: IGNORE_OLD_POSTS
+        value: "true"
