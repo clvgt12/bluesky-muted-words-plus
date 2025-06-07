@@ -2,135 +2,132 @@
 # user_list_tool.py
 
 import argparse
-import csv
-import os
-import re
+import json
 import sys
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List
 
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
 from server.config import DEFAULT_DID
 from server.database import UserLists, db
-from server.text_utils import clean_text
+from server.text_utils import clean_text, get_webpage_text
 from server.vector import string_to_vector, vector_to_blob, model
 
-# --- CSV reader & vectorizer ---
-def read_csv(path: str) -> str:
-    """Read a CSV where each row is comma-separated words."""
-    words: list[str] = []
-    with open(path, newline="", encoding="utf-8") as f:
-        for row in csv.reader(f):
-            for w in row:
-                w = w.strip().lower()
-                if w:
-                    words.append(w)
-    return " ".join(words)
+def fetch_vectors_from_urls(urls: List[str]) -> List:
+    vectors = []
+    for url in urls:
+        print(f"Processing {url}...")
+        try:
+            raw = get_webpage_text(url)
+            if not raw or len(raw.strip()) < 100:
+                print(f"⚠️ Skipped {url}: content was empty or too short")
+                continue
+            cleaned = clean_text(raw)
+            vec = string_to_vector(cleaned, model)
+            vectors.append(vec)
+        except Exception as e:
+            print(f"❌ Skipped {url}: {type(e).__name__} — {e}")
+    return vectors
 
-# --- Upsert white and blacklists ---
-from datetime import datetime, timezone
+def upsert_from_json(did: str, json_path: str) -> None:
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"❌ Error: File not found: '{json_path}'")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"❌ Error: Failed to parse JSON: {e}")
+        sys.exit(1)
 
-def upsert_lists(did: str, args: argparse.Namespace) -> None:
-    """
-    Slogan: Upsert the whitelist and blacklist (if provided) in one concise loop.
-    """
     for kind in ("white_list", "black_list"):
-        path = getattr(args, kind)
-        if not path:
+        print(f"Processing {kind.replace("_"," ")}")
+        section = data.get(kind, {})
+        words = section.get("words", [])
+        urls = section.get("urls", [])
+
+        vectors = []
+
+        if words:
+            keyword_text = " ".join(words)
+            print(f"Processing keywords...")
+            vectors.append(string_to_vector(keyword_text, model))
+        else:
+            keyword_text = ""
+
+        vectors += fetch_vectors_from_urls(urls)
+
+        if not vectors:
+            print(f"\u26a0\ufe0f No valid vectors for {kind}; skipping.")
             continue
 
-        # 1) Read & vectorize
-        text = read_csv(path)
-        vec_arr = string_to_vector(text, model)      # numpy.ndarray
-        blob    = vector_to_blob(vec_arr)            # bytes
-        dim     = vec_arr.shape[0]
+        combined_vec = sum(vectors) / len(vectors)
+        blob = vector_to_blob(combined_vec)
+        dim = combined_vec.shape[0]
+        now = datetime.now(timezone.utc)
 
-        # 2) Build a dict of the columns we want to update
-        update_data = {
-            f"{kind}_text":   text,
-            f"{kind}_vector": blob,
-            f"{kind}_dim":    dim,
-            "modified_at":    datetime.now(timezone.utc),
-        }
+        # Determine DB fields
+        vector_field = f"{kind}_vector"
+        text_field = f"{kind}_text"
+        dim_field = f"{kind}_dim"
+        urls_field = f"{kind}_urls"
 
-        # 3) Fire the update
+        # Perform DB upsert
         try:
             row = UserLists.get(UserLists.did == did)
-            row_modified = {}
-
-            # Update only the kind we’re working on
-            row_modified.update({
-                f"{kind}_text": text,
-                f"{kind}_vector": blob,
-                f"{kind}_dim": dim,
-                "modified_at": datetime.now(timezone.utc),
-            })
-
-            UserLists.update(**row_modified).where(UserLists.did == did).execute()
+            update_data = {
+                text_field: keyword_text,
+                vector_field: blob,
+                dim_field: dim,
+                urls_field: json.dumps(urls),
+                "modified_at": now
+            }
+            UserLists.update(**update_data).where(UserLists.did == did).execute()
         except UserLists.DoesNotExist:
-            # Insert new row
             insert_data = {
                 "did": did,
-                "modified_at": datetime.now(timezone.utc),
-                f"{kind}_text": text,
-                f"{kind}_vector": blob,
-                f"{kind}_dim": dim,
+                text_field: keyword_text,
+                vector_field: blob,
+                dim_field: dim,
+                urls_field: json.dumps(urls),
+                "modified_at": now
             }
             UserLists.create(**insert_data)
 
+        print(f"\u2705 Stored {kind.replace('_', ' ').title()} for DID={did}")
 
-        # 4) Friendly feedback
-        label = kind.replace("_", " ").title()
-        print(f"✅ Stored {label} for DID={did}")
-        print(f"   {label}: [ {text.replace(' ', ', ')} ]\n")
 
-# --- Retrieve stored lists ---
 def retrieve_lists(did: str):
-    """
-    Slogan: Retrieve white and blacklists from database.
-    """
     try:
         row = UserLists.select().where(UserLists.did == did).get()
         print(f"DID={row.did}")
-        print(f"  Whitelist: [ {row.white_list_text.replace(' ',', ')} ]\n")
-        print(f"  Blacklist: [ {row.black_list_text.replace(' ',', ')} ]\n")
-        print(f"  Modified:  {datetime.fromisoformat(row.modified_at).strftime('%Y-%m-%d %H:%M:%S %Z %z')}\n")
+        print(f"  Whitelist: [ {row.white_list_text.replace(' ', ', ')} ]")
+        print(f"  Whitelist URLs: {row.white_list_urls}")
+        print(f"  Blacklist: [ {row.black_list_text.replace(' ', ', ')} ]")
+        print(f"  Blacklist URLs: {row.black_list_urls}")
+        print(f"  Modified:  {row.modified_at.strftime('%Y-%m-%d %H:%M:%S %Z %z')}\n")
     except UserLists.DoesNotExist:
         print(f"No entry found for DID={did}")
 
-# --- Main CLI logic ---
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Vectorize and store whitelist/blacklist word lists"
-    )
-    parser.add_argument(
-        "-d", "--did",
-        help="Bluesky DID (e.g. did:plc:...); defaults to $DEFAULT_DID",
-        default=None
-    )
-    parser.add_argument(
-        "-w", "--white_list",
-        help="Path to whitelist CSV",
-        required=False
-    )
-    parser.add_argument(
-        "-b", "--black_list",
-        help="Path to blacklist CSV",
-        required=False
-    )
+    parser = argparse.ArgumentParser(description="Vectorize and store whitelist/blacklist with example URLs")
+    parser.add_argument("-d", "--did", help="Bluesky DID", default=None)
+    parser.add_argument("-j", "--json_path", help="Path to structured JSON input", required=False)
     args = parser.parse_args()
 
     did = args.did or DEFAULT_DID
-    if did is None:
+    if not did:
         print("A BlueSky DID must be specified!")
         sys.exit(1)
 
-    if args.white_list is not None or args.black_list is not None:
-        upsert_lists(did, args)
+    if args.json_path:
+        upsert_from_json(did, args.json_path)
     else:
         retrieve_lists(did)
+
 
 if __name__ == "__main__":
     main()
