@@ -44,7 +44,21 @@ signal.signal(signal.SIGINT, sigint_handler)
 @app.route('/')
 def index():
     """
-    Root endpoint now calls feed.handler(). Clients can pass:
+    Root endpoint shows the application name DISPLAY_NAME and
+    description DESCRIPTION used when the custom feed registers 
+    itself on the Bluesky network
+    """
+    if not config.DISPLAY_NAME or not config.DESCRIPTION:
+        return '', 404
+    return jsonify({
+        'DISPLAY_NAME': config.DISPLAY_NAME,
+        'DESCRIPTION': config.DESCRIPTION,
+    })
+
+@app.route('/test-feed-handler/', methods=['GET'])
+def test_feed_handler():
+    """
+    Tests feed.handler(). Clients can pass:
       - cursor: optional pagination cursor (string)
       - limit:  optional int, max number of posts to return
     """
@@ -63,7 +77,6 @@ def index():
     # 4) Return the dict as a JSON response
     return jsonify(body)
 
-
 @app.route('/.well-known/did.json', methods=['GET'])
 def did_json():
     if not config.SERVICE_DID.endswith(config.HOSTNAME):
@@ -81,7 +94,6 @@ def did_json():
         ]
     })
 
-
 @app.route('/xrpc/app.bsky.feed.describeFeedGenerator', methods=['GET'])
 def describe_feed_generator():
     feeds = [{'uri': uri} for uri in algos.keys()]
@@ -93,7 +105,6 @@ def describe_feed_generator():
         }
     }
     return jsonify(response)
-
 
 @app.route('/xrpc/app.bsky.feed.getFeedSkeleton', methods=['GET'])
 def get_feed_skeleton():
