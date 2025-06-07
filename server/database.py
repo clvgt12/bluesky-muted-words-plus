@@ -34,12 +34,14 @@ class PostVector(BaseModel):
 
 class UserLists(BaseModel):
     did = peewee.CharField(index=True)
-    white_list_text = peewee.CharField(null=True, default=None)
-    white_list_vector = peewee.BlobField(null=True, default=None)
-    white_list_dim = peewee.BigIntegerField(null=True, default=None)
-    black_list_text = peewee.CharField(null=True, default=None)
-    black_list_vector = peewee.BlobField(null=True, default=None)
-    black_list_dim = peewee.BigIntegerField(null=True, default=None)
+    white_list_text = peewee.TextField(null=True)
+    white_list_urls = peewee.TextField(null=True)
+    white_list_vector = peewee.BlobField(null=True)
+    white_list_dim = peewee.IntegerField(null=True)
+    black_list_text = peewee.TextField(null=True)
+    black_list_urls = peewee.TextField(null=True)
+    black_list_vector = peewee.BlobField(null=True)
+    black_list_dim = peewee.IntegerField(null=True)
     modified_at = peewee.DateTimeField(default=lambda: datetime.now(timezone.utc))
 
 if db.is_closed():
