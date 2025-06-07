@@ -1,9 +1,10 @@
 # config.py
 import logging
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+# Load from .env.development only if available — this supports local dev, but is safe in prod
+load_dotenv(find_dotenv(filename=".env.development"), override=False)
 
 SERVICE_DID = os.environ.get('SERVICE_DID')
 HOSTNAME = os.environ.get('HOSTNAME')
