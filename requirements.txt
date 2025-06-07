@@ -12,4 +12,5 @@ contractions
 ftfy
 pytz
 spacy>=3.7.2
+streamlit>=1.30.0
 waitress

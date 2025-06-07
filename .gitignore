@@ -168,3 +168,7 @@ cython_debug/
 #.idea/
 
 data/
+
+# Streamlit
+
+.streamlit/
