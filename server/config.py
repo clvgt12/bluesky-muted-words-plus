@@ -47,7 +47,11 @@ HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", 8000))
 THREADS = int(os.getenv("THREADS", 4))
 MODEL_NAME = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-SHOW_THRESH = float(os.getenv("SHOW_THRESHOLD", 0.75))
-HIDE_THRESH = float(os.getenv("HIDE_THRESHOLD", 0.75))
+SHOW_THRESH = min(max(float(os.getenv("SHOW_THRESHOLD", 0.75)), 0.0), 1.0)
+HIDE_THRESH = min(max(float(os.getenv("HIDE_THRESHOLD", 0.75)), 0.0), 1.0)
 BIAS_WEIGHT = float(os.getenv("BIAS_WEIGHT", "0.05"))
 TEMPERATURE = float(os.getenv("SOFTMAX_TEMPERATURE", 1.0))
+# Clamp temperature to safe minimum value
+if TEMPERATURE <= 0.0:
+    logger.error("⚠️  SOFTMAX_TEMPERATURE must be > 0. Defaulting to 0.1")
+    TEMPERATURE = 0.1
