@@ -5,8 +5,22 @@ import peewee
 
 import numpy as np
 from server.config import DEFAULT_DID
+from server.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 db = peewee.SqliteDatabase('feed_database.db')
+
+# Ensure WAL mode is enabled after connecting
+@db.connection_context()
+def configure_sqlite():
+    journal_mode = db.execute_sql("PRAGMA journal_mode=WAL;").fetchone()[0]
+    db.execute_sql("PRAGMA synchronous = NORMAL;")   # Less fsync = faster writes
+    db.execute_sql("PRAGMA cache_size = -10000;")    # ~10MB cache (in KB if negative)
+
+    logger.debug(f"SQLite PRAGMA settings: journal_mode={journal_mode}, synchronous=NORMAL, cache_size=-10000")
+
+configure_sqlite()
 
 class BaseModel(peewee.Model):
     class Meta:
