@@ -33,8 +33,24 @@ fi
 echo "🏷️ Tagging image as ${IMAGE_URI}"
 docker tag "${IMAGE_NAME}:${TAG}" "${IMAGE_URI}"
 
-echo "🚀 Pushing image to Google Container Registry..."
-docker push "${IMAGE_URI}"
+echo "🔍 Checking image digest..."
+
+# Get local image ID (sha256 hash without 'sha256:')
+LOCAL_DIGEST=$(docker image inspect --format='{{.Id}}' "${IMAGE_NAME}:${TAG}" | cut -d':' -f2)
+
+# Get remote image digest (sha256 hash from GCR)
+REMOTE_DIGEST=$(gcloud container images describe "${IMAGE_URI%:*}" \
+  --format='get(image_summary.digest)' 2>/dev/null | cut -d':' -f2)
+
+echo "🔍 Local Digest : $LOCAL_DIGEST"
+echo "🔍 Remote Digest: $REMOTE_DIGEST"
+
+if [[ -n "$REMOTE_DIGEST" && "$LOCAL_DIGEST" == "$REMOTE_DIGEST" ]]; then
+  echo "✅ Image digest matches GCR. Skipping push."
+else
+  echo "🚀 Pushing image to Google Container Registry..."
+  docker push "${IMAGE_URI}"
+fi
 
 # --- Convert .env to GCP env var format, excluding secrets ---
 ENV_VARS=""
