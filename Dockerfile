@@ -35,5 +35,10 @@ COPY feed_database.db /app/feed_database.db
 # Expose the port Waitress will listen on
 EXPOSE 8000
 
+# Build in the sentence transform into the docker container image
+ARG MODEL_NAME
+ENV MODEL_NAME=${MODEL_NAME}
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${MODEL_NAME}')"
+
 # Entrypoint: use waitress to serve the Flask app
 CMD ["python3", "-m", "server"]
