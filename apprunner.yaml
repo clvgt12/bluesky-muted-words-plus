@@ -1,0 +1,40 @@
+version: 1.0
+source:
+  repository:
+    connection_name: github                # Replace with actual App Runner connection name (e.g., github-123abc)
+    repository_url: https://github.com/clvgt12/bluesky-muted-words-plus
+    branch: main
+    configuration:
+      runtime: docker
+      build_command: "pip3 install -r requirements.txt"                    # Not needed for Docker
+      start_command: "python3 -m server"                    # Not needed for Docker
+      dockerfile_path: ./Dockerfile
+      port: 8000
+      runtime_environment_variables:
+      runtime_environment_variables:
+        HANDLE: ""
+        PASSWORD: ""
+        HOSTNAME: bluesky-muted-words-plus-lnxg.onrender.com
+        FEED_URI: at://did:plc:btd7cocvy4na2wyowrpbo64o/app.bsky.feed.generator/bluesky-muted-words-plus
+        RECORD_NAME: bluesky-muted-words-plus
+        DISPLAY_NAME: "Bluesky Muted Words Plus"
+        DESCRIPTION: "powered by The AT Protocol SDK for Python"
+        AVATAR_PATH: ./assets/feed_logo.jpg
+        SERVICE_DID: ""
+        ACCEPTS_INTERACTIONS: "false"
+        IS_VIDEO_FEED: "false"
+        IGNORE_REPLY_POSTS: "true"
+        IGNORE_OLD_POSTS: "true"
+        FLASK_DEBUG: "false"
+        DEFAULT_DID: did:plc:btd7cocvy4na2wyowrpbo64o
+        MODEL_NAME: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+        SHOW_THRESHOLD: 0.750
+        HIDE_THRESHOLD: 0.575
+        BIAS_WEIGHT: 0.25
+        SOFTMAX_TEMPERATURE: 1.0
+
+instance_configuration:
+  cpu: 2 vCPU
+  memory: 4 GB
+
+auto_deployments_enabled: true
