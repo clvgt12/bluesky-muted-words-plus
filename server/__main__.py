@@ -21,9 +21,11 @@ def main():
     args = parser.parse_args()
 
     # Start the background data stream consumer thread process
+    print("➡️ Starting background data stream consumer thread")
     start_data_stream_thread()
 
     # Start Waitress server
+    print(f"➡️ Starting waitress with host={args.host}, port={args.port} and {args.threads} threads")
     serve(app, host=args.host, port=args.port, threads=args.threads)
 
 if __name__ == '__main__':
