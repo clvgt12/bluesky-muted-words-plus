@@ -1,3 +1,5 @@
+# data_stream.py
+import time
 from collections import defaultdict
 from atproto import AtUri, CAR, firehose_models, FirehoseSubscribeReposClient, models, parse_subscribe_repos_message
 from atproto.exceptions import FirehoseError
@@ -54,10 +56,13 @@ def run(name, operations_callback, stream_stop_event=None):
         try:
             _run(name, operations_callback, stream_stop_event)
         except FirehoseError as e:
-            if logger.level == logging.DEBUG:
-                raise e
-            logger.error(f'Firehose error: {e}. Reconnecting to the firehose.')
-
+            wait = 2
+            if "ConsumerTooSlow" in str(e):
+                logger.error(f"⚠️ FirehoseError: ConsumerTooSlow. Sleeping {wait}s before retry...")
+            else:
+                logger.error(f'Firehose error: {e}. Reconnecting to the firehose.')
+            time.sleep(wait)
+            continue
 
 def _run(name, operations_callback, stream_stop_event=None):
     state = SubscriptionState.get_or_none(SubscriptionState.service == name)
