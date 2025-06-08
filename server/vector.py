@@ -2,6 +2,7 @@
 # Vector operations using NumPy
 
 import os
+import time
 import numpy as np
 from typing import List, Literal
 from sentence_transformers import SentenceTransformer
@@ -25,7 +26,9 @@ if TEMPERATURE <= 0.0:
 def get_model() -> SentenceTransformer:
     global _model_instance
     if _model_instance is None:
+        start = time.time()
         _model_instance = SentenceTransformer(MODEL_NAME)
+        logger.debug(f"✅ Loaded SentenceTransformer model in {time.time() - start:.2f} seconds")
     return _model_instance
 
 def words_to_vector(words: List[str]) -> np.ndarray:
