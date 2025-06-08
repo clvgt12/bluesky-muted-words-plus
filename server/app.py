@@ -21,18 +21,23 @@ app = Flask(__name__)
 logger = setup_logger(__name__)  # 👈 This tags the logger with the module path
 
 # ───────────────────────────────────────────────────────
-# Configure and run data stream in a separate thread
+# Configure and start the data stream in a separate thread
 # ───────────────────────────────────────────────────────
 
-stream_stop_event = threading.Event()
-stream_thread = threading.Thread(
-    target=data_stream.run, args=(config.SERVICE_DID, operations_callback, stream_stop_event,)
-)
-stream_thread.start()
+data_stream_stop_event = threading.Event()
+
+def start_data_stream_thread():
+    data_stream_thread = threading.Thread(
+        target=data_stream.run,
+        args=(config.SERVICE_DID, operations_callback, data_stream_stop_event),
+        daemon=True,
+    )
+    data_stream_thread.start()
+    return data_stream_thread
 
 def sigint_handler(*_):
     print('Stopping data stream...')
-    stream_stop_event.set()
+    data_stream_stop_event.set()
     sys.exit(0)
 
 signal.signal(signal.SIGINT, sigint_handler)
