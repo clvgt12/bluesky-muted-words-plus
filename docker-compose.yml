@@ -1,25 +1,25 @@
+# Docker compose YAML file
+# docker-compose.yml
+
 services:
   feed-generator:
     container_name: bluesky-muted-words-plus
-    image: bluesky-muted-words-plus  # 👈 this sets the desired image name
+    image: bluesky-muted-words-plus
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        MODEL_NAME: ${MODEL_NAME:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
     ports:
       - "8000:8000"
     env_file:
-      - .env.development         
+      - .env.development
+    environment:
+      MODEL_NAME: ${MODEL_NAME:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    runtime: nvidia
+    runtime: nvidia  # ✅ Required for GPU in non-Swarm Docker Compose
     restart: unless-stopped
