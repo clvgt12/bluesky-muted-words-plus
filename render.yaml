@@ -4,7 +4,7 @@ services:
     env: docker
     repo: https://github.com/clvgt12/bluesky-muted-words-plus.git
     branch: feature/integrate-feed
-    plan: free  # or 'starter' or 'standard' depending on your tier
+    plan: free
     region: oregon
     dockerContext: .
     dockerfilePath: ./Dockerfile
@@ -21,11 +21,23 @@ services:
       - key: RECORD_NAME
         value: bluesky-muted-words-plus
       - key: DISPLAY_NAME
-        value: Bluesky Muted Words Plus
+        value: 'Bluesky Muted Words Plus'
       - key: DESCRIPTION
-        value: powered by The AT Protocol SDK for Python
+        value: 'powered by The AT Protocol SDK for Python'
       - key: AVATAR_PATH
         value: ./assets/feed_logo.jpg
+      - key: SERVICE_DID
+        value: ''
+      - key: ACCEPTS_INTERACTIONS
+        value: 'false'
+      - key: IS_VIDEO_FEED
+        value: 'false'
+      - key: IGNORE_REPLY_POSTS
+        value: 'true'
+      - key: IGNORE_OLD_POSTS
+        value: 'true'
+      - key: FLASK_DEBUG
+        value: '0'
       - key: DEFAULT_DID
         value: did:plc:btd7cocvy4na2wyowrpbo64o
       - key: MODEL_NAME
@@ -38,7 +50,3 @@ services:
         value: "0.25"
       - key: SOFTMAX_TEMPERATURE
         value: "1.0"
-      - key: IGNORE_REPLY_POSTS
-        value: "true"
-      - key: IGNORE_OLD_POSTS
-        value: "true"
