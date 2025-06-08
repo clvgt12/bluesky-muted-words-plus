@@ -14,15 +14,6 @@ logger = setup_logger(__name__)
 
 _model_instance = None
 
-# Enforce limits
-SHOW_THRESH = min(max(SHOW_THRESH, 0.0), 1.0)
-HIDE_THRESH = min(max(HIDE_THRESH, 0.0), 1.0)
-
-# Clamp temperature to safe minimum value
-if TEMPERATURE <= 0.0:
-    logger.error("⚠️  SOFTMAX_TEMPERATURE must be > 0. Defaulting to 1.0.")
-    TEMPERATURE = 1.0
-
 def get_model() -> SentenceTransformer:
     global _model_instance
     if _model_instance is None:
