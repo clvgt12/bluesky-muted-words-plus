@@ -1,6 +1,8 @@
+# server/auth.py
 from atproto import DidInMemoryCache, IdResolver, verify_jwt
 from atproto.exceptions import TokenInvalidSignatureError
 from flask import Request
+from server.config import FLASK_DEBUG
 
 
 _CACHE = DidInMemoryCache()
@@ -33,9 +35,18 @@ def validate_auth(request: 'Request') -> str:
     if not auth_header.startswith(_AUTHORIZATION_HEADER_VALUE_PREFIX):
         raise AuthorizationError('Invalid authorization header')
 
-    jwt = auth_header[len(_AUTHORIZATION_HEADER_VALUE_PREFIX) :].strip()
+    jwt_token = auth_header[len(_AUTHORIZATION_HEADER_VALUE_PREFIX) :].strip()
+
+    # 🧪 TEMP DEBUG
+    print(f"[auth] FLASK_DEBUG = {FLASK_DEBUG}")
+    print(f"[auth] JWT Token received: {jwt_token}")
+
+    # DEV OVERRIDE: allow 'alg: none' fake JWTs for local testing
+    if FLASK_DEBUG and jwt_token.startswith("dev:"):
+        print(f"[auth] ✅ Dev override triggered for {jwt_token[len('dev:'):]}")
+        return jwt_token[len("dev:"):]
 
     try:
-        return verify_jwt(jwt, _ID_RESOLVER.did.resolve_atproto_key).iss
+        return verify_jwt(jwt_token, _ID_RESOLVER.did.resolve_atproto_key).iss
     except TokenInvalidSignatureError as e:
         raise AuthorizationError('Invalid signature') from e

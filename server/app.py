@@ -7,8 +7,8 @@ from server import config
 from server import data_stream
 
 from flask import Flask, jsonify, request
-
 from server.algos import algos
+from server.algos.feed import handler, generate_fake_jwt
 from server.data_filter import operations_callback
 from server.logger import setup_logger
 
@@ -72,21 +72,30 @@ def test_feed_handler():
     Tests feed.handler(). Clients can pass:
       - cursor: optional pagination cursor (string)
       - limit:  optional int, max number of posts to return
+
+    Injects a fake Authorization header using DEFAULT_DID.
     """
-    from server.algos.feed import handler
-    # 2) Read query params
+    
+    if not config.FLASK_DEBUG:
+        return jsonify({"error": "Test handler is disabled in production"}), 403
+
+    # 1) Extract query params
     cursor = request.args.get('cursor', default=None, type=str)
     limit  = request.args.get('limit',  default=20,    type=int)
 
-    # 3) Call your feed handler
+    # 2) Use DEFAULT_DID for spoofed user identity
+    fake_token = generate_fake_jwt(config.DEFAULT_DID, config.SERVICE_DID)
+
+    # 3) Inject Authorization header into WSGI environ
+    request.environ['HTTP_AUTHORIZATION'] = f"Bearer {fake_token}"
+
+    # 4) Call handler and return result
     try:
-        body = handler(cursor, limit)
+        response = handler(cursor, limit)
     except ValueError as e:
-        # invalid cursor format
         return str(e), 400
 
-    # 4) Return the dict as a JSON response
-    return jsonify(body)
+    return response
 
 @app.route('/.well-known/did.json', methods=['GET'])
 def did_json():
