@@ -16,9 +16,8 @@ from sentence_transformers import SentenceTransformer
 from server.config import BSKY_USERNAME, BSKY_PASSWORD, DEFAULT_DID
 from server.logger import setup_logger
 from server.text_utils import clean_text, extract_extra_text
-from server.vector import string_to_vector, vector_to_blob, cosine_similarity, score_post, model
+from server.vector import string_to_vector, vector_to_blob, cosine_similarity, score_post
 from server.database import db, Post, PostVector, UserLists
-
 
 logger = setup_logger(__name__)
 
@@ -66,7 +65,7 @@ def extract_bluesky_post_text(post_url: str) -> str:
 # ---- Store post in DB and vectorize ----
 def store_post(uri: str, cid: str, cleaned_text: str) -> Post:
     post = Post.create(uri=uri, cid=cid)
-    vector = string_to_vector(cleaned_text, model)
+    vector = string_to_vector(cleaned_text)
     PostVector.create(
         post=post,
         post_text=cleaned_text,
