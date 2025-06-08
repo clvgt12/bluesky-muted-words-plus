@@ -1,5 +1,4 @@
 # config.py
-import logging
 import os
 from dotenv import load_dotenv, find_dotenv
 
@@ -53,5 +52,4 @@ BIAS_WEIGHT = float(os.getenv("BIAS_WEIGHT", "0.05"))
 TEMPERATURE = float(os.getenv("SOFTMAX_TEMPERATURE", 1.0))
 # Clamp temperature to safe minimum value
 if TEMPERATURE <= 0.0:
-    logger.error("⚠️  SOFTMAX_TEMPERATURE must be > 0. Defaulting to 0.1")
     TEMPERATURE = 0.1
