@@ -60,6 +60,12 @@ def index():
         'DESCRIPTION': config.DESCRIPTION,
     })
 
+@app.route("/health/")
+def health():
+    return jsonify({
+        'Status': 'OK'
+    }), 200
+
 @app.route('/test-feed-handler/', methods=['GET'])
 def test_feed_handler():
     """

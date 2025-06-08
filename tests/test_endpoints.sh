@@ -3,7 +3,7 @@
 # Test endpoints
 #
 BASE_URL="http://localhost:8000"
-ENDPOINTS=("/" "/test-feed-handler/")
+ENDPOINTS=("/" "/health/" "/test-feed-handler/")
 
 for endpoint in "${ENDPOINTS[@]}"; do
   echo "Testing endpoint: $endpoint"
