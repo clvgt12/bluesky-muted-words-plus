@@ -1,9 +1,13 @@
 # config.py
 import os
 from dotenv import load_dotenv, find_dotenv
+from pathlib import Path
 
 # Load from .env.development only if available — this supports local dev, but is safe in prod
-load_dotenv(find_dotenv(filename=".env.development"), override=False)
+if Path(".env.development").exists():
+    load_dotenv(dotenv_path=".env.development", override=False)
+else:
+    load_dotenv(override=False)
 
 SERVICE_DID = os.environ.get('SERVICE_DID')
 HOSTNAME = os.environ.get('HOSTNAME')
