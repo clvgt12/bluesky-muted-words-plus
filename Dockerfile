@@ -36,4 +36,4 @@ COPY feed_database.db /app/feed_database.db
 EXPOSE 8000
 
 # Entrypoint: use waitress to serve the Flask app
-CMD ["waitress-serve", "--host=0.0.0.0", "--port=8000", "server.app:app"]
+CMD ["python3", "-m", "server"]
