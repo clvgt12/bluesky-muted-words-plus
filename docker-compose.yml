@@ -1,6 +1,7 @@
 services:
   feed-generator:
     container_name: bluesky-muted-words-plus
+    image: bluesky-muted-words-plus  # 👈 this sets the desired image name
     build:
       context: .
       dockerfile: Dockerfile
