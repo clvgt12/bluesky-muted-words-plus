@@ -19,7 +19,13 @@ def _get_ops_by_type(commit: models.ComAtprotoSyncSubscribeRepos.Commit) -> defa
     operation_by_type = defaultdict(lambda: {'created': [], 'deleted': []})
 
     car = CAR.from_bytes(commit.blocks)
-    for op in commit.ops:
+
+    for i, op in enumerate(commit.ops):
+    
+        # Yield to other threads periodically
+        if i % 100 == 0:
+            time.sleep(0)
+
         if op.action == 'update':
             # we are not interested in updates
             continue
