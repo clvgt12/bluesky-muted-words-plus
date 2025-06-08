@@ -15,7 +15,7 @@ import os
 from datetime import datetime, timezone
 from server.config import DEFAULT_DID
 from server.database import UserLists, db
-from server.vector import blob_to_vector, string_to_vector, vector_to_blob, model
+from server.vector import blob_to_vector, string_to_vector, vector_to_blob
 from server.text_utils import clean_text, get_webpage_text
 import numpy as np
 
@@ -65,14 +65,14 @@ def save_to_database(did, data):
         vectors = []
         keyword_text = " ".join(words)
         if words:
-            vectors.append(string_to_vector(keyword_text, model))
+            vectors.append(string_to_vector(keyword_text))
 
         for url in urls:
             try:
                 raw = get_webpage_text(url)
                 if raw and len(raw.strip()) > 100:
                     cleaned = clean_text(raw)
-                    vectors.append(string_to_vector(cleaned, model))
+                    vectors.append(string_to_vector(cleaned))
             except Exception:
                 continue
 

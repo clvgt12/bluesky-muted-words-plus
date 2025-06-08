@@ -8,7 +8,7 @@ from server import config
 from server.database import db, Post, PostVector, fetch_user_lists_fields
 from server.logger import setup_logger
 from server.text_utils import clean_text, extract_extra_text
-from server.vector import model, string_to_vector, score_post
+from server.vector import string_to_vector, score_post
 
 logger = setup_logger(__name__)
 
@@ -76,7 +76,7 @@ def operations_callback(ops: defaultdict) -> None:
             combined_text += " " + " ".join(extra_text)
 
         cleaned = clean_text(combined_text)
-        post_vector = string_to_vector(cleaned, model)
+        post_vector = string_to_vector(cleaned)
 
         scores = score_post(
             post_vector,

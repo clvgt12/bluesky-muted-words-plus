@@ -11,7 +11,7 @@ from server.text_utils import keyword_match_bias
 
 logger = setup_logger(__name__)
 
-model = SentenceTransformer(MODEL_NAME)
+_model_instance = None
 
 # Enforce limits
 SHOW_THRESH = min(max(SHOW_THRESH, 0.0), 1.0)
@@ -22,12 +22,18 @@ if TEMPERATURE <= 0.0:
     logger.error("⚠️  SOFTMAX_TEMPERATURE must be > 0. Defaulting to 1.0.")
     TEMPERATURE = 1.0
 
-def words_to_vector(words: List[str], model: SentenceTransformer) -> np.ndarray:
-    text = " ".join(words)
-    return model.encode(text,show_progress_bar=False).astype(np.float32)
+def get_model() -> SentenceTransformer:
+    global _model_instance
+    if _model_instance is None:
+        _model_instance = SentenceTransformer(MODEL_NAME)
+    return _model_instance
 
-def string_to_vector(string: str, model: SentenceTransformer) -> np.ndarray:
-    return model.encode(string,show_progress_bar=False).astype(np.float32)
+def words_to_vector(words: List[str]) -> np.ndarray:
+    text = " ".join(words)
+    return get_model().encode(text,show_progress_bar=False).astype(np.float32)
+
+def string_to_vector(string: str) -> np.ndarray:
+    return get_model().encode(string,show_progress_bar=False).astype(np.float32)
 
 def vector_to_blob(vec: np.ndarray) -> bytes:
     return vec.astype(np.float32).tobytes()
