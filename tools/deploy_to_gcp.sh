@@ -18,6 +18,18 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 function build() {
+  # --- Clean SQLite database ---
+  echo "🧹 Cleaning up feed_database.db (Post & PostVector)..."
+  if [[ -f "feed_database.db" ]]; then
+    sqlite3 feed_database.db <<EOF
+DELETE FROM PostVector;
+DELETE FROM Post;
+VACUUM;
+EOF
+    echo "✅ SQLite cleanup complete."
+  else
+    echo "⚠️ feed_database.db not found. Skipping SQLite cleanup."
+  fi
   # --- Build Docker image ---
   echo "🔧 Building Docker image '${IMAGE_NAME}:${TAG}'..."
   docker build -t "${IMAGE_NAME}:${TAG}" .
