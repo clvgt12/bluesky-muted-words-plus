@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # --- Configuration ---
-PROJECT_ID=$(gcloud config get-value project)
+PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
 IMAGE_NAME="bluesky-muted-words-plus"
 TAG="latest"
 REGION="us-east1"
@@ -11,80 +11,113 @@ SERVICE_NAME="$IMAGE_NAME"
 IMAGE_URI="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:${TAG}"
 ENV_FILE=".env"
 
-# --- Check gcloud auth ---
-if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q "@"; then
-  echo "❌ No active gcloud account found. Run 'gcloud auth login' first."
-  exit 1
-fi
-
-# --- Enable required services ---
-echo "🔧 Enabling required GCP APIs..."
-gcloud services enable run.googleapis.com containerregistry.googleapis.com
-
-# --- Build Docker image ---
-if docker image inspect "${IMAGE_NAME}:${TAG}" > /dev/null 2>&1; then
-  echo "✅ Local image '${IMAGE_NAME}:${TAG}' found. Skipping build."
-else
-  echo "🔧 Building Docker image '${IMAGE_NAME}:${TAG}'..."
-  docker build -t "${IMAGE_NAME}:${TAG}" .
-fi
-
-# --- Tag and push to GCR ---
-echo "🏷️ Tagging image as ${IMAGE_URI}"
-docker tag "${IMAGE_NAME}:${TAG}" "${IMAGE_URI}"
-
-echo "🔍 Checking image digest..."
-
-# Get local image ID (sha256 hash without 'sha256:')
-LOCAL_DIGEST=$(docker image inspect --format='{{.Id}}' "${IMAGE_NAME}:${TAG}" | cut -d':' -f2)
-
-# Get remote image digest (sha256 hash from GCR)
-REMOTE_DIGEST=$(gcloud container images describe "${IMAGE_URI%:*}" \
-  --format='get(image_summary.digest)' 2>/dev/null | cut -d':' -f2)
-
-echo "🔍 Local Digest : $LOCAL_DIGEST"
-echo "🔍 Remote Digest: $REMOTE_DIGEST"
-
-if [[ -n "$REMOTE_DIGEST" && "$LOCAL_DIGEST" == "$REMOTE_DIGEST" ]]; then
-  echo "✅ Image digest matches GCR. Skipping push."
-else
-  echo "🚀 Pushing image to Google Container Registry..."
-  docker push "${IMAGE_URI}"
-fi
-
 # --- Convert .env to GCP env var format, excluding secrets ---
 ENV_VARS=""
 if [[ -f "$ENV_FILE" ]]; then
-  echo "📄 Loading environment variables from $ENV_FILE"
-  ENV_VARS=$(grep -v '^#' "$ENV_FILE" | grep -v -E -e '^\s*HANDLE=|^\s*PASSWORD=' -e '^\s*$' | paste -sd, -)
-else
-  echo "⚠️ No $ENV_FILE file found. Continuing without env vars."
+  ENV_VARS=$(grep -v -E -e '^\s*HANDLE=|^\s*PASSWORD=|^\s*PORT=' -e '^\s*$' -e '^#' "$ENV_FILE" | paste -sd, -)
 fi
 
-echo "📄 Here is the app environment: $ENV_VARS"
+function build() {
+  # --- Build Docker image ---
+  echo "🔧 Building Docker image '${IMAGE_NAME}:${TAG}'..."
+  docker build -t "${IMAGE_NAME}:${TAG}" .
 
-echo "🚀 Deploying to Cloud Run..."
-if [[ -n "$ENV_VARS" ]]; then
-  gcloud run deploy "$SERVICE_NAME" \
-    --image "$IMAGE_URI" \
+  # --- Tag Docker Image ---
+  echo "🏷️ Tagging image as ${IMAGE_URI}"
+  docker tag "${IMAGE_NAME}:${TAG}" "${IMAGE_URI}"
+}
+
+function push() {
+  # --- Push image to GCP ---
+  echo "🚀 Pushing image to Google Container Registry..."
+  docker push "${IMAGE_URI}"
+}
+
+function deploy() {
+  echo "🚀 Deploying to Cloud Run..."
+  if [[ -n "$ENV_VARS" ]]; then
+    gcloud run deploy "$SERVICE_NAME" \
+      --image "$IMAGE_URI" \
+      --platform managed \
+      --region "$REGION" \
+      --port "$PORT" \
+      --cpu=2 \
+      --memory="4Gi" \
+      --allow-unauthenticated \
+      --set-env-vars "$ENV_VARS"
+  else
+    gcloud run deploy "$SERVICE_NAME" \
+      --image "$IMAGE_URI" \
+      --platform managed \
+      --region "$REGION" \
+      --port "$PORT" \
+      --cpu=2 \
+      --memory="4Gi" \
+      --allow-unauthenticated
+  fi
+  # --- Output URL ---
+  echo ""
+  echo "✅ Deployed '$SERVICE_NAME' to Cloud Run!"
+  gcloud run services describe "$SERVICE_NAME" \
     --platform managed \
     --region "$REGION" \
-    --port "$PORT" \
-    --allow-unauthenticated \
-    --set-env-vars "$ENV_VARS"
-else
-  gcloud run deploy "$SERVICE_NAME" \
-    --image "$IMAGE_URI" \
-    --platform managed \
-    --region "$REGION" \
-    --port "$PORT" \
-    --allow-unauthenticated
-fi
+    --format='value(status.url)'
+}
 
-# --- Output URL ---
-echo ""
-echo "✅ Deployed '$SERVICE_NAME' to Cloud Run!"
-gcloud run services describe "$SERVICE_NAME" \
-  --platform managed \
-  --region "$REGION" \
-  --format='value(status.url)'
+function usage() {
+  echo "Usage: $0 [OPTIONS]"
+  echo "Options:"
+  echo "  -b, --build     Build the Docker image"
+  echo "  -p, --push      Push the image to GCP"
+  echo "  -d, --deploy    Deploy the service to Cloud Run"
+  echo "  -h, --help      Show this help message"
+  exit 0
+}
+
+function main() {
+
+  local DO_BUILD=false
+  local DO_PUSH=false
+  local DO_DEPLOY=false
+
+  # --- Parse long options ---
+  TEMP=$(getopt -o bpdh --long build,push,deploy,help -n "$0" -- "$@")
+  if [[ $? != 0 ]]; then
+    echo "❌ Failed to parse options." >&2
+    exit 1
+  fi
+  eval set -- "$TEMP"
+
+  while true; do
+    case "$1" in
+      -b|--build)   DO_BUILD=true; shift ;;
+      -p|--push)    DO_PUSH=true; shift ;;
+      -d|--deploy)  DO_DEPLOY=true; shift ;;
+      -h|--help)    usage ;;
+      --)           shift; break ;;
+      *)            echo "❌ Unknown option: $1"; usage ;;
+    esac
+  done
+
+  if ! $DO_BUILD && ! $DO_PUSH && ! $DO_DEPLOY; then
+    usage
+  fi
+
+  echo "📄 Here is the app environment: $ENV_VARS"
+
+  # --- Check gcloud auth ---
+  if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q "@"; then
+    echo "❌ No active gcloud account found. Run 'gcloud auth login' first."
+    exit 1
+  fi
+  # --- Enable required services ---
+  echo "🔧 Enabling required GCP APIs..."
+  gcloud services enable run.googleapis.com containerregistry.googleapis.com
+
+  $DO_BUILD && build
+  $DO_PUSH && push
+  $DO_DEPLOY && deploy
+
+}
+
+main "$@"
