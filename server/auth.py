@@ -37,13 +37,8 @@ def validate_auth(request: 'Request') -> str:
 
     jwt_token = auth_header[len(_AUTHORIZATION_HEADER_VALUE_PREFIX) :].strip()
 
-    # 🧪 TEMP DEBUG
-    print(f"[auth] FLASK_DEBUG = {FLASK_DEBUG}")
-    print(f"[auth] JWT Token received: {jwt_token}")
-
     # DEV OVERRIDE: allow 'alg: none' fake JWTs for local testing
     if FLASK_DEBUG and jwt_token.startswith("dev:"):
-        print(f"[auth] ✅ Dev override triggered for {jwt_token[len('dev:'):]}")
         return jwt_token[len("dev:"):]
 
     try:

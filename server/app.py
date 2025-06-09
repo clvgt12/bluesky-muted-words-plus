@@ -1,4 +1,4 @@
-import os
+# app.py 
 import sys
 import signal
 import threading
@@ -137,10 +137,14 @@ def get_feed_skeleton():
     from server.auth import AuthorizationError, validate_auth
     try:
         requester_did = validate_auth(request)
-        logger.debug(f'validate_auth() returned Requester DID: {requester_did}')
     except AuthorizationError:
         return 'Unauthorized', 401
 
+    # Now check if the DID is in the UserList table
+    from server.database import UserLists
+    if not UserLists.select().where(UserLists.did == requester_did).exists():
+        return 'Unauthorized', 401
+        
     try:
         cursor = request.args.get('cursor', default=None, type=str)
         limit = request.args.get('limit', default=20, type=int)
