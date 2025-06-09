@@ -98,11 +98,15 @@ def operations_callback(ops: defaultdict) -> None:
                 'cid': cid,
                 'reply_parent': reply_parent,
                 'reply_root': reply_root,
+            }
+
+            postvector_dict = {
                 'post_text': cleaned,
                 'post_vector': post_vector.tobytes(),
-                'post_dim': len(post_vector)
+                'post_dim': len(post_vector),
             }
-            posts_to_create.append(post_dict)
+
+            posts_to_create.append((post_dict, postvector_dict))
             logger.debug(f"✅ Included post {created_post['uri']} ({scores['decision']})")
         else:
             logger.debug(f"🚫 Filtered out post {created_post['uri']} ({scores['decision']})")
@@ -115,6 +119,7 @@ def operations_callback(ops: defaultdict) -> None:
 
     if posts_to_create:
         with db.atomic():
-            for post_dict in posts_to_create:
-                Post.create(**post_dict)
+            for post_dict, postvector_dict in posts_to_create:
+                post_obj = Post.create(**post_dict)
+                PostVector.create(post=post_obj, **postvector_dict)
         logger.debug(f'Added to feed: {len(posts_to_create)}')
