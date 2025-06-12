@@ -58,6 +58,7 @@ def sigint_handler(*_):
     sys.exit(0)
 
 signal.signal(signal.SIGINT, sigint_handler)
+signal.signal(signal.SIGTERM, sigint_handler)
 
 # ───────────────────────────────────────────────────────
 # Define REST API and enter event loop
