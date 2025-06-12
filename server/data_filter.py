@@ -5,7 +5,7 @@ from collections import defaultdict
 from atproto import models
 
 from server import config
-from server.database import db, Post, PostVector, fetch_user_lists_fields
+from server.database import db, Post, fetch_user_lists_fields
 from server.logger import setup_logger
 from server.text_utils import clean_text, extract_extra_text
 from server.vector import string_to_vector, score_post
@@ -100,13 +100,7 @@ def operations_callback(ops: defaultdict) -> None:
                 'reply_root': reply_root,
             }
 
-            postvector_dict = {
-                'post_text': cleaned,
-                'post_vector': post_vector.tobytes(),
-                'post_dim': len(post_vector),
-            }
-
-            posts_to_create.append((post_dict, postvector_dict))
+            posts_to_create.append(post_dict)
             logger.debug(f"✅ Included post {created_post['uri']} ({scores['decision']})")
         else:
             logger.debug(f"🚫 Filtered out post {created_post['uri']} ({scores['decision']})")
@@ -119,7 +113,6 @@ def operations_callback(ops: defaultdict) -> None:
 
     if posts_to_create:
         with db.atomic():
-            for post_dict, postvector_dict in posts_to_create:
+            for post_dict in posts_to_create:
                 post_obj = Post.create(**post_dict)
-                PostVector.create(post=post_obj, **postvector_dict)
         logger.debug(f'Added to feed: {len(posts_to_create)}')

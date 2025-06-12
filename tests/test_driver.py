@@ -17,7 +17,7 @@ from server.config import BSKY_USERNAME, BSKY_PASSWORD, DEFAULT_DID
 from server.logger import setup_logger
 from server.text_utils import clean_text, extract_extra_text
 from server.vector import string_to_vector, vector_to_blob, cosine_similarity, score_post
-from server.database import db, Post, PostVector, UserLists
+from server.database import db, Post, UserLists
 
 logger = setup_logger(__name__)
 
@@ -62,18 +62,6 @@ def extract_bluesky_post_text(post_url: str) -> str:
     logger.info(f"Combined main and extra text: {text}")
     return clean_text(text)
 
-# ---- Store post in DB and vectorize ----
-def store_post(uri: str, cid: str, cleaned_text: str) -> Post:
-    post = Post.create(uri=uri, cid=cid)
-    vector = string_to_vector(cleaned_text)
-    PostVector.create(
-        post=post,
-        post_text=cleaned_text,
-        post_vector=vector_to_blob(vector),
-        post_dim=len(vector)
-    )
-    return post
-
 # ---- Retrieve user whitelist and blacklist vectors ----
 def fetch_user_vectors(did: str) -> tuple[np.ndarray, np.ndarray, UserLists]:
     row = UserLists.get_or_none(UserLists.did == DEFAULT_DID)
@@ -92,11 +80,11 @@ def run_test(post_url: str, test_description: str, expected_classification: str)
     cleaned = extract_bluesky_post_text(post_url)
     print(f"\n🧹 Cleaned Text:\n{cleaned}\n")
 
-    post = store_post(uri=post_url, cid="dummy-cid", cleaned_text=cleaned)
-
     whitelist_vec, blacklist_vec, row = fetch_user_vectors(DEFAULT_DID)
-    post_vector = post.vector.get()
-    post_vec = np.frombuffer(post_vector.post_vector, dtype=np.float32, count=post_vector.post_dim)
+    post_vector = string_to_vector(cleaned)
+    post_vector_dim = len(post_vector)
+    post_vector_blob = vector_to_blob(post_vector)
+    post_vec = np.frombuffer(post_vector_blob, dtype=np.float32, count=post_vector_dim)
 
     result = score_post(
         post_vec,

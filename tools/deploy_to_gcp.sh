@@ -19,10 +19,9 @@ fi
 
 function build() {
   # --- Clean SQLite database ---
-  echo "🧹 Cleaning up feed_database.db (Post & PostVector)..."
+  echo "🧹 Cleaning up feed_database.db..."
   if [[ -f "feed_database.db" ]]; then
     sqlite3 feed_database.db <<EOF
-DELETE FROM PostVector;
 DELETE FROM Post;
 VACUUM;
 EOF
