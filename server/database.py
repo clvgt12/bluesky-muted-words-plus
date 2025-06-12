@@ -1,10 +1,11 @@
 # server/database.py
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import peewee
+import time
 
 import numpy as np
-from server.config import DEFAULT_DID
+from server.config import DEFAULT_DID, DB_RECORD_TTL, DB_HYSTERESIS
 from server.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -73,3 +74,20 @@ def fetch_user_lists_fields(did: str) -> tuple[str, np.ndarray, int, str, np.nda
     white_vec = np.frombuffer(row.white_list_vector, dtype=np.float32, count=row.white_list_dim)
     black_vec = np.frombuffer(row.black_list_vector, dtype=np.float32, count=row.black_list_dim)
     return row.white_list_text, white_vec, row.white_list_dim, row.black_list_text, black_vec, row.black_list_dim
+
+def cleanup_expired_posts(ttl_seconds: int=DB_RECORD_TTL, hysteresis_seconds: int = DB_THREAD_HYSTERESIS):
+    """Background task that removes expired Post and PostVector entries based on TTL."""
+    while True:
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(seconds=ttl_seconds)
+
+        # Delete PostVectors for expired posts
+        expired_posts = Post.select().where(Post.indexed_at < cutoff)
+        expired_post_ids = [post.id for post in expired_posts]
+        if expired_post_ids:
+            PostVector.delete().where(PostVector.post_id.in_(expired_post_ids)).execute()
+            Post.delete().where(Post.id.in_(expired_post_ids)).execute()
+            logger.info(f"[TTL Cleanup] Deleted {len(expired_post_ids)} expired posts at {datetime.now(timezone.utc)}")
+
+        # Sleep before next run
+        time.sleep(ttl_seconds + hysteresis_seconds)

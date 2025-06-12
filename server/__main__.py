@@ -2,7 +2,7 @@
 import argparse
 import sys
 from server import config
-from server.app import app, start_data_stream_thread
+from server.app import app, start_data_stream_thread, start_database_ttl_cleanup_thread
 from waitress import serve
 
 def main():
@@ -19,6 +19,10 @@ def main():
 
     # Parse arguments normally
     args = parser.parse_args()
+
+    # Start the background database TTL cleanup thread process
+    print("➡️ Starting background database TTL cleanup thread")
+    start_database_ttl_cleanup_thread()
 
     # Start the background data stream consumer thread process
     print("➡️ Starting background data stream consumer thread")

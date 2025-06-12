@@ -10,6 +10,7 @@ from flask import Flask, jsonify, request
 from server.algos import algos
 from server.algos.feed import handler, generate_fake_jwt
 from server.data_filter import operations_callback
+from server.database import cleanup_expired_posts
 from server.logger import setup_logger
 
 app = Flask(__name__)
@@ -19,6 +20,21 @@ app = Flask(__name__)
 # ───────────────────────────────────────────────────────
 
 logger = setup_logger(__name__)  # 👈 This tags the logger with the module path
+
+# ───────────────────────────────────────────────────────
+# Start a database TTL cleanup thread
+# ───────────────────────────────────────────────────────
+
+database_ttl_cleanup_stop_event = threading.Event()
+
+def start_database_ttl_cleanup_thread():
+    ttl_thread = threading.Thread(
+        target=cleanup_expired_posts,
+        args=(),
+        daemon=True  # so it won't block shutdown
+    )
+    ttl_thread.start()
+    return ttl_thread
 
 # ───────────────────────────────────────────────────────
 # Configure and start the data stream in a separate thread
@@ -36,7 +52,8 @@ def start_data_stream_thread():
     return data_stream_thread
 
 def sigint_handler(*_):
-    print('Stopping data stream...')
+    print('Stopping background threads...')
+    database_ttl_cleanup_stop_event.set()
     data_stream_stop_event.set()
     sys.exit(0)
 
