@@ -2,7 +2,8 @@
 .idea
 *.iml
 .env
-# *.db
+*.db
+*.db-*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
