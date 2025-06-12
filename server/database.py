@@ -5,7 +5,7 @@ import peewee
 import time
 
 import numpy as np
-from server.config import DEFAULT_DID, DB_RECORD_TTL, DB_HYSTERESIS
+from server.config import DEFAULT_DID, DB_RECORD_TTL, DB_THREAD_HYSTERESIS
 from server.logger import setup_logger
 
 logger = setup_logger(__name__)
