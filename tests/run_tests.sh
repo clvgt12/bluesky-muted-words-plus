@@ -47,6 +47,50 @@ run_driver \
     "https://bsky.app/profile/vitalos.us/post/3lq6sqecbek27" \
     "extract web page text using reddit post, compare vs. strong whitelist match" \
     "SHOW"
+run_driver \
+    "https://bsky.app/profile/miosotis--art.bsky.social/post/3lrh5nafydc2t" \
+    "compare post in Spanish against white- and blacklists in English" \
+    "AMBIGUOUS"
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrh7mzqqhc2g" \
+    "Compare Blogger post in Portuguese with strong alignment against whitelist words in English" \
+    "SHOW"
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrhatxi6dk2p" \
+    "Compare Bsky post in English with strong alignment against whitelist words in English" \
+    "SHOW" 
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrhabbpvts2g" \
+    "Compare Bsky post in Portuguese with strong alignment against whitelist words in English" \
+    "SHOW" 
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrhakyakis2p" \
+    "Compare Bsky post in German with strong alignment against whitelist words in English" \
+    "SHOW" 
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrhaoaldd22p" \
+    "Compare Bsky post in French with strong alignment against whitelist words in English" \
+    "SHOW" 
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrharjy7ws2p" \
+    "Compare Bsky post in Spanish with strong alignment against whitelist words in English" \
+    "SHOW"
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrhcx6jt3s2p" \
+    "Compare Blogger post in English with strong alignment against whitelist words in English" \
+    "SHOW" 
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrh7mzqqhc2g" \
+    "Compare Blogger post in Spanish with strong alignment against whitelist words in English" \
+    "SHOW" 
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrhcne6ve22p" \
+    "Compare Blogger post in German with strong alignment against whitelist words in English" \
+    "SHOW" 
+run_driver \
+    "https://bsky.app/profile/vitalos.us/post/3lrhd4svihc2p" \
+    "Compare Blogger post in French with strong alignment against whitelist words in English" \
+    "SHOW" 
 
 echo "=== All Tests Executed ==="
 echo "=== Test Summary ==="
