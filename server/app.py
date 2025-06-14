@@ -59,6 +59,7 @@ def sigint_handler(*_):
 
 signal.signal(signal.SIGINT, sigint_handler)
 signal.signal(signal.SIGTERM, sigint_handler)
+signal.signal(signal.SIGABRT, sigint_handler)
 
 # ───────────────────────────────────────────────────────
 # Define REST API and enter event loop
