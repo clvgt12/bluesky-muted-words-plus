@@ -10,6 +10,7 @@ beautifulsoup4
 bleach
 contractions
 ftfy
+psycopg2-binary
 pytz
 PyJWT
 spacy>=3.7.2

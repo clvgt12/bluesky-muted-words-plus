@@ -14,10 +14,13 @@ import json
 import os
 from datetime import datetime, timezone
 from server.config import DEFAULT_DID
-from server.database import UserLists, db
-from server.vector import blob_to_vector, string_to_vector, vector_to_blob
+from server.database import db, UserLists, UserListNotFoundError, fetch_user_lists_fields
+from server.logger import setup_logger
+from server.vector import string_to_vector
 from server.text_utils import clean_text, get_webpage_text
 import numpy as np
+
+logger = setup_logger(__name__)
 
 DEFAULT_JSON_PATH = "data/user_list.json"
 
@@ -27,34 +30,53 @@ st.title("📋 User List Editor")
 @st.cache_data(show_spinner=False)
 def load_user_lists(did):
     try:
-        row = UserLists.select().where(UserLists.did == did).get()
+        (
+            white_list_text,
+            white_list_urls,
+            white_list_vector,
+            white_list_dim,
+            black_list_text,
+            black_list_urls,
+            black_list_vector,
+            black_list_dim,
+        ) = fetch_user_lists_fields(did)
         return {
             "white_list": {
-                "words": row.white_list_text.split(),
-                "urls": json.loads(row.white_list_urls or "[]")
+                "words": white_list_text.split() if white_list_text else [],
+                "urls": json.loads(white_list_urls or "[]")
             },
             "black_list": {
-                "words": row.black_list_text.split(),
-                "urls": json.loads(row.black_list_urls or "[]")
+                "words": black_list_text.split() if black_list_text else [],
+                "urls": json.loads(black_list_urls or "[]")
             }
         }
-    except UserLists.DoesNotExist:
-        return {"white_list": {"words": [], "urls": []}, "black_list": {"words": [], "urls": []}}
-
+    except UserListNotFoundError as e:
+        logger.error(f"🛑 Missing user vector configuration: {e}")
+        return {
+            "white_list": {"words": [], "urls": []},
+            "black_list": {"words": [], "urls": []}
+        }
 def dump_vectors_to_console(did):
     try:
-        row = UserLists.select().where(UserLists.did == did).get()
-        for kind in ("white_list", "black_list"):
-            vec_blob = getattr(row, f"{kind}_vector")
-            vec_dim = getattr(row, f"{kind}_dim")
-            if vec_blob:
-                vec = blob_to_vector(vec_blob, vec_dim)
-                print(f"\n=== {kind.replace('_', ' ').title()} Vector ({vec.shape[0]} dims) ===")
-                print(", ".join(f"{x:.4f}" for x in vec))
-            else:
-                print(f"{kind.replace('_', ' ').title()} vector is empty or missing.")
-    except UserLists.DoesNotExist:
-        print(f"No entry found for DID={did}")
+        (
+            white_list_text,
+            white_list_urls,
+            white_list_vector,
+            white_list_dim,
+            black_list_text,
+            black_list_urls,
+            black_list_vector,
+            black_list_dim,
+        ) = fetch_user_lists_fields(did)
+    except UserListNotFoundError as e:
+        logger.error(f"🛑 Missing user vector configuration: {e}")
+        return
+    for kind, vector in [("white_list", white_list_vector), ("black_list", black_list_vector)]:
+        if vector is not None:
+            print(f"\n=== {kind.replace('_', ' ').title()} Vector ({len(vector)} dims) ===")
+            print(", ".join(f"{x:.4f}" for x in vector))
+        else:
+            print(f"{kind.replace('_', ' ').title()} vector is empty or missing.")
 
 def save_to_database(did, data):
     now = datetime.now(timezone.utc)
@@ -79,15 +101,14 @@ def save_to_database(did, data):
         if not vectors:
             continue
 
-        combined_vec = sum(vectors) / len(vectors)
-        blob = vector_to_blob(combined_vec)
-        dim = combined_vec.shape[0]
+        combined_vector = sum(vectors) / len(vectors)
+        dim = combined_vector.shape[0]
 
         try:
             row = UserLists.get(UserLists.did == did)
             update_data = {
                 f"{kind}_text": keyword_text,
-                f"{kind}_vector": blob,
+                f"{kind}_vector": combined_vector,  # Peewee should handle the nparray to pgstring conversion
                 f"{kind}_dim": dim,
                 f"{kind}_urls": json.dumps(urls),
                 "modified_at": now
@@ -97,7 +118,7 @@ def save_to_database(did, data):
             insert_data = {
                 "did": did,
                 f"{kind}_text": keyword_text,
-                f"{kind}_vector": blob,
+                f"{kind}_vector": combined_vector, # Peewee should handle the nparray to pgstring conversion
                 f"{kind}_dim": dim,
                 f"{kind}_urls": json.dumps(urls),
                 "modified_at": now

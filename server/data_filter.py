@@ -5,10 +5,10 @@ from collections import defaultdict
 from atproto import models
 
 from server import config
-from server.database import db, Post, fetch_user_lists_fields
+from server.database import db, Post, UserListNotFoundError, fetch_user_lists_fields
 from server.logger import setup_logger
 from server.text_utils import clean_text, extract_extra_text
-from server.vector import string_to_vector, score_post
+from server.vector import string_to_vector, score_post, vector_to_pgstring
 
 logger = setup_logger(__name__)
 
@@ -54,7 +54,20 @@ def operations_callback(ops: defaultdict) -> None:
 
     # Lookup user-specific whitelist and blacklist vectors
     user_did = config.DEFAULT_DID    # Let's use DEFAULT_DID for now...
-    white_list_text, white_list_vector, white_list_dim, black_list_text, black_list_vector, black_list_dim = fetch_user_lists_fields(user_did)
+    try:
+        (
+            white_list_text,
+            white_list_urls,
+            white_list_vector,
+            white_list_dim,
+            black_list_text,
+            black_list_urls,
+            black_list_vector,
+            black_list_dim,
+        ) = fetch_user_lists_fields(user_did)
+    except UserListNotFoundError as e:
+        logger.error(f"🛑 Missing user vector configuration: {e}")
+        return  # or skip processing this batch
     white_list_words=white_list_text.split()
     black_list_words=black_list_text.split()
 
@@ -102,18 +115,20 @@ def operations_callback(ops: defaultdict) -> None:
             }
 
             posts_to_create.append(post_dict)
-            logger.debug(f"✅ Included post {created_post['uri']}: scored=({scores.get("decision")}), policy=({config.AMBIGUOUS_POST_POLICY}), decision=({decision})")
+            logger.debug(f"✅ Included post {created_post['uri']}: scored=({scores.get('decision')}), policy=({config.AMBIGUOUS_POST_POLICY}), decision=({decision})")
         else:
-            logger.debug(f"🚫 Filtered out post {created_post['uri']}: scored=({scores.get("decision")}), policy=({config.AMBIGUOUS_POST_POLICY}), decision=({decision})")
+            logger.debug(f"🚫 Filtered out post {created_post['uri']}: scored=({scores.get('decision')}), policy=({config.AMBIGUOUS_POST_POLICY}), decision=({decision})")
 
     posts_to_delete = ops[models.ids.AppBskyFeedPost]['deleted']
     if posts_to_delete:
-        post_uris_to_delete = [post['uri'] for post in posts_to_delete]
+        post_uris_to_delete = [post.get('uri') for post in posts_to_delete]
         Post.delete().where(Post.uri.in_(post_uris_to_delete))
         logger.debug(f'Deleted from feed: {len(post_uris_to_delete)}')
 
     if posts_to_create:
         with db.atomic():
             for post_dict in posts_to_create:
-                post_obj = Post.create(**post_dict)
-        logger.debug(f'Added to feed: {len(posts_to_create)}')
+                try:
+                    Post.create(**post_dict)
+                except Exception as e:
+                    logger.error(f"❌ Failed to store Post for {post_dict.get('uri')}")
