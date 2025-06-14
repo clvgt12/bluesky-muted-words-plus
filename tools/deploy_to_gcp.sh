@@ -78,6 +78,7 @@ function deploy() {
 function usage() {
   echo "Usage: $0 [OPTIONS]"
   echo "Options:"
+  echo "  -a, --all       Run all of the below stages"
   echo "  -b, --build     Build the Docker image"
   echo "  -p, --push      Push the image to GCP"
   echo "  -d, --deploy    Deploy the service to Cloud Run"
@@ -101,6 +102,7 @@ function main() {
 
   while true; do
     case "$1" in
+      -a|--all)     DO_BUILD=true; DO_PUSH=true; DO_DEPLOY=true; shift ;;
       -b|--build)   DO_BUILD=true; shift ;;
       -p|--push)    DO_PUSH=true; shift ;;
       -d|--deploy)  DO_DEPLOY=true; shift ;;
