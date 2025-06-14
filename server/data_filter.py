@@ -87,7 +87,8 @@ def operations_callback(ops: defaultdict) -> None:
             blacklist_words=black_list_words,
         )
 
-        if scores["decision"] in {"SHOW", "AMBIGUOUS"}:
+        decision = config.AMBIGUOUS_POST_POLICY if scores.get("decision") == "AMBIGUOUS" else scores.get("decision")
+        if decision == "SHOW":
             reply_root = reply_parent = None
             if record.reply:
                 reply_root = record.reply.root.uri
@@ -101,9 +102,9 @@ def operations_callback(ops: defaultdict) -> None:
             }
 
             posts_to_create.append(post_dict)
-            logger.debug(f"✅ Included post {created_post['uri']} ({scores['decision']})")
+            logger.debug(f"✅ Included post {created_post['uri']}: scored=({scores.get("decision")}), policy=({config.AMBIGUOUS_POST_POLICY}), decision=({decision})")
         else:
-            logger.debug(f"🚫 Filtered out post {created_post['uri']} ({scores['decision']})")
+            logger.debug(f"🚫 Filtered out post {created_post['uri']}: scored=({scores.get("decision")}), policy=({config.AMBIGUOUS_POST_POLICY}), decision=({decision})")
 
     posts_to_delete = ops[models.ids.AppBskyFeedPost]['deleted']
     if posts_to_delete:

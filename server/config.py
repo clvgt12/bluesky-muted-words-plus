@@ -54,6 +54,8 @@ DB_THREAD_HYSTERESIS = int(os.getenv("DB_THREAD_HYSTERESIS", 15))
 MODEL_NAME = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 SHOW_THRESH = min(max(float(os.getenv("SHOW_THRESHOLD", 0.75)), 0.0), 1.0)
 HIDE_THRESH = min(max(float(os.getenv("HIDE_THRESHOLD", 0.75)), 0.0), 1.0)
+AMBIGUOUS_POST_POLICY = os.getenv("AMBIGUOUS_POST_POLICY", "SHOW")
+AMBIGUOUS_POST_POLICY = AMBIGUOUS_POST_POLICY if AMBIGUOUS_POST_POLICY in ("SHOW", "HIDE") else "SHOW"
 BIAS_WEIGHT = float(os.getenv("BIAS_WEIGHT", "0.05"))
 TEMPERATURE = float(os.getenv("SOFTMAX_TEMPERATURE", 1.0))
 # Clamp temperature to safe minimum value
