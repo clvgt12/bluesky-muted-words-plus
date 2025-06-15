@@ -36,3 +36,8 @@ data/*
 dist/
 build/
 *.egg-info/
+
+# Dockerfiles and docker compose
+docker-compose.yml
+Dockerfile
+Dockerfile.*

@@ -1,5 +1,10 @@
 #!/bin/bash
-
+#
+# run_model_tests.sh
+#
+# Run predefined model tests to validate select functions in the vector and text_utils modules,
+# and the effects of hyperparameter changes
+#
 # initialize counters
 test_number=0
 pass=0
@@ -12,7 +17,7 @@ function run_driver() {
     
     ((test_number++))
     echo $(printf "Running test number %d:" "$test_number")
-    local output=$(python3 -m tests.test_driver --url="$url" --test_description="$desc" --classification="$result" 2>/dev/null)
+    local output=$(python3 -m tests.test_model --url="$url" --test_description="$desc" --classification="$result" 2>/dev/null)
 
     if echo "$output" | grep -q '"result": "PASS"'; then
         ((pass++))

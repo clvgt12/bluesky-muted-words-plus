@@ -1,6 +1,7 @@
 # server/vector.py
 # Vector operations using NumPy and PostgreSQL pgvector-compatible formatting
 
+import os
 import time
 import numpy as np
 from typing import List, Literal
@@ -19,7 +20,7 @@ def get_model() -> SentenceTransformer:
         start = time.time()
         _model_instance = SentenceTransformer(
             MODEL_NAME,
-            cache_folder="/app/.cache/huggingface",  # or match ENV/HF_HOME
+            cache_folder=os.path.join(os.getcwd(), ".cache", "huggingface"), 
         )
         logger.debug(f"✅ Loaded SentenceTransformer model in {time.time() - start:.2f} seconds")
     return _model_instance
