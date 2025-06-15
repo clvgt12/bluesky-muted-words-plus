@@ -18,17 +18,7 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 function build() {
-  # --- Clean SQLite database ---
-  echo "🧹 Cleaning up feed_database.db..."
-  if [[ -f "feed_database.db" ]]; then
-    sqlite3 feed_database.db <<EOF
-DELETE FROM Post;
-VACUUM;
-EOF
-    echo "✅ SQLite cleanup complete."
-  else
-    echo "⚠️ feed_database.db not found. Skipping SQLite cleanup."
-  fi
+
   # --- Build Docker image ---
   echo "🔧 Building Docker image '${IMAGE_NAME}:${TAG}'..."
   docker build -t "${IMAGE_NAME}:${TAG}" .
@@ -36,15 +26,19 @@ EOF
   # --- Tag Docker Image ---
   echo "🏷️ Tagging image as ${IMAGE_URI}"
   docker tag "${IMAGE_NAME}:${TAG}" "${IMAGE_URI}"
+
 }
 
 function push() {
+
   # --- Push image to GCP ---
   echo "🚀 Pushing image to Google Container Registry..."
   docker push "${IMAGE_URI}"
+
 }
 
 function deploy() {
+
   echo "🚀 Deploying to Cloud Run..."
   if [[ -n "$ENV_VARS" ]]; then
     gcloud run deploy "$SERVICE_NAME" \
@@ -55,6 +49,9 @@ function deploy() {
       --cpu=2 \
       --memory="4Gi" \
       --allow-unauthenticated \
+      --service-account=788033931517-compute@developer.gserviceaccount.com \
+      --set-cloudsql-instances=bluesky-muted-words-plus:us-east1:pgvector-db \
+      --project="$PROJECT_ID" \
       --set-env-vars "$ENV_VARS"
   else
     gcloud run deploy "$SERVICE_NAME" \
@@ -64,6 +61,9 @@ function deploy() {
       --port "$PORT" \
       --cpu=2 \
       --memory="4Gi" \
+      --service-account=788033931517-compute@developer.gserviceaccount.com \
+      --set-cloudsql-instances=bluesky-muted-words-plus:us-east1:pgvector-db \
+      --project="$PROJECT_ID" \
       --allow-unauthenticated
   fi
   # --- Output URL ---
@@ -73,6 +73,7 @@ function deploy() {
     --platform managed \
     --region "$REGION" \
     --format='value(status.url)'
+    
 }
 
 function usage() {
