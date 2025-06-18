@@ -10,6 +10,7 @@ PORT=8000
 SERVICE_NAME="$IMAGE_NAME"
 IMAGE_URI="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:${TAG}"
 ENV_FILE=".env"
+VPC_CONNECTOR="projects/bluesky-muted-words-plus/locations/us-east1/connectors/vpc-network-connector"
 
 # --- Convert .env to GCP env var format, excluding secrets ---
 ENV_VARS=""
@@ -21,7 +22,7 @@ function build() {
 
   # --- Build Docker image ---
   echo "🔧 Building Docker image '${IMAGE_NAME}:${TAG}'..."
-  docker build -t "${IMAGE_NAME}:${TAG}" .
+  docker build -f "Dockerfile.${IMAGE_NAME}" -t "${IMAGE_NAME}:${TAG}" .
 
   # --- Tag Docker Image ---
   echo "🏷️ Tagging image as ${IMAGE_URI}"
@@ -52,7 +53,9 @@ function deploy() {
       --service-account=788033931517-compute@developer.gserviceaccount.com \
       --set-cloudsql-instances=bluesky-muted-words-plus:us-east1:pgvector-db \
       --project="$PROJECT_ID" \
-      --set-env-vars "$ENV_VARS"
+      --set-env-vars "$ENV_VARS" \
+      --vpc-connector="$VPC_CONNECTOR" \
+      --ingress=all
   else
     gcloud run deploy "$SERVICE_NAME" \
       --image "$IMAGE_URI" \
@@ -64,7 +67,9 @@ function deploy() {
       --service-account=788033931517-compute@developer.gserviceaccount.com \
       --set-cloudsql-instances=bluesky-muted-words-plus:us-east1:pgvector-db \
       --project="$PROJECT_ID" \
-      --allow-unauthenticated
+      --allow-unauthenticated \
+      --vpc-connector="$VPC_CONNECTOR" \
+      --ingress=all
   fi
   # --- Output URL ---
   echo ""
@@ -94,7 +99,7 @@ function main() {
   local DO_DEPLOY=false
 
   # --- Parse long options ---
-  TEMP=$(getopt -o bpdh --long build,push,deploy,help -n "$0" -- "$@")
+  TEMP=$(getopt -o abpdh --long all,build,push,deploy,help -n "$0" -- "$@")
   if [[ $? != 0 ]]; then
     echo "❌ Failed to parse options." >&2
     exit 1
