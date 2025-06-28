@@ -1,0 +1,166 @@
+# k8s_yaml_files/feed-endpoint.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feed-endpoint
+  namespace: bluesky-muted-words-plus
+  labels:
+    app: feed-endpoint
+spec:
+  replicas: 1 # Start with 1 replica for local development
+  selector:
+    matchLabels:
+      app: feed-endpoint
+  template:
+    metadata:
+      labels:
+        app: feed-endpoint
+    spec:
+      # If using GPU, ensure your Minikube has a GPU-enabled driver and setup
+      # If not using GPU, remove the nodeSelector, tolerations, and nvidia.com/gpu limits/requests
+      # This example assumes NVIDIA T4 GPU for illustration
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-tesla-t4 # Label on GPU nodes (for GKE), or similar for Minikube
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: flask-app
+        # Image will be built locally by Minikube's Docker daemon.
+        # For GKE, this would be your Google Artifact Registry path:
+        # e.g., us-east1-docker.pkg.dev/your-project-id/your-repo/bluesky-feed-endpoint:latest
+        image: bluesky-feed-endpoint:latest
+        ports:
+        - containerPort: 8000
+        env:
+        # Database credentials from Kubernetes Secret
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: database
+        # Other non-sensitive environment variables from config.py and .env.development
+        - name: POSTGRES_HOST # Connect to proxy
+          value: "127.0.0.1"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: FLASK_ENV # Set for local dev, ensure it's 'production' for GKE
+          value: "development" # This ensures config.py loads from .env.development locally
+        - name: HOST # For Flask/Waitress
+          value: "0.0.0.0"
+        - name: PORT # For Flask/Waitress
+          value: "8000"
+        - name: HOSTNAME
+          value: "bluesky-muted-words-plus-788033931517.us-east1.run.app" # From .env.development
+        - name: SERVICE_DID # Derived from HOSTNAME if not set explicitly
+          value: "did:web:bluesky-muted-words-plus-788033931517.us-east1.run.app" # Based on HOSTNAME
+        - name: FEED_URI
+          value: "at://did:plc:btd7cocvy4na2wyowrpbo64o/app.bsky.feed.generator/bluesky-muted-words-plus" # From .env.development
+        - name: DEFAULT_DID
+          value: "did:plc:btd7cocvy4na2wyowrpbo64o" # From .env.development
+        - name: DISPLAY_NAME
+          value: "Bluesky Muted Words Plus" # From .env.development
+        - name: DESCRIPTION
+          value: "Powered by The AT Protocol SDK for Python" # From .env.development
+        - name: RECORD_NAME
+          value: "bluesky-muted-words-plus" # From .env.development
+        - name: ACCEPTS_INTERACTIONS
+          value: "false" # From .env.development
+        - name: IS_VIDEO_FEED
+          value: "false" # From .env.development
+        - name: IGNORE_REPLY_POSTS
+          value: "true" # From .env.development
+        - name: IGNORE_OLD_POSTS
+          value: "true" # From .env.development
+        - name: MODEL_NAME
+          value: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" # From .env.development
+        - name: SHOW_THRESHOLD
+          value: "0.750" # From .env.development
+        - name: HIDE_THRESHOLD
+          value: "0.575" # From .env.development
+        - name: AMBIGUOUS_POST_POLICY
+          value: "HIDE" # From .env.development
+        - name: BIAS_WEIGHT
+          value: "0.25" # From .env.development
+        - name: SOFTMAX_TEMPERATURE
+          value: "1.0" # From .env.development
+        # Sensitive credentials from Secret for Bsky connection (if Flask app needs to act as a client)
+        - name: BSKY_USERNAME # HANDLE from .env.development
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials # Reusing, but ideally a dedicated secret for Bsky creds
+              key: handle
+        - name: BSKY_PASSWORD # PASSWORD from .env.development
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: bsky_password # Renamed key in secret for clarity
+
+        resources:
+          requests:
+            cpu: "1000m" # 1 CPU core requested
+            memory: "2Gi" # 2 GiB memory requested
+            nvidia.com/gpu: "1" # Request 1 GPU
+          limits:
+            cpu: "2000m" # Up to 2 CPU cores
+            memory: "4Gi" # Up to 4 GiB memory
+            nvidia.com/gpu: "1" # Limit to 1 GPU
+        livenessProbe:
+          httpGet:
+            path: /health/
+            port: 8000
+          initialDelaySeconds: 30 # Give time for app and model to load
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/
+            port: 8000
+          initialDelaySeconds: 15 # Shorter delay for readiness
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+      - name: cloudsql-proxy # Cloud SQL Proxy sidecar
+        image: gcr.io/cloud-sql-proxy/cloud-sql-proxy:2.10.0 # Use the latest v2
+        command:
+        - "/cloud_sql_proxy"
+        args:
+        # For Minikube, connect to the internal K8s Service name for Postgres
+        - "--port=5432"
+        - "--address=127.0.0.1"
+        - "postgres-service" # This maps to the ClusterIP Service defined in k8s-minikube-postgres.yaml
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"# k8s-feed-endpoint-service.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: feed-endpoint-service # The name other services (or Ingress) will use
+  namespace: bluesky-muted-words-plus
+  labels:
+    app: feed-endpoint
+spec:
+  selector:
+    app: feed-endpoint
+  ports:
+    - protocol: TCP
+      port: 80 # The port that this service will listen on (can be different from targetPort)
+      targetPort: 8000 # The port your Flask app inside the container listens on
+  type: ClusterIP # Default type, makes it accessible only within the cluster

@@ -1,0 +1,196 @@
+# k8s_yaml_files/post-ingestion-service.yaml
+# Combined Deployment and Service for the post-ingestion-service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: post-ingestion-service
+  namespace: bluesky-muted-words-plus # Ensure this matches your namespace
+  labels:
+    app: post-ingestion-service
+spec:
+  replicas: 1 # Typically one replica for this service
+  selector:
+    matchLabels:
+      app: post-ingestion-service
+  template:
+    metadata:
+      labels:
+        app: post-ingestion-service
+    spec:
+      containers:
+      - name: ingestion-worker
+        image: bluesky-post-ingestion-service:latest # Your locally built image
+        imagePullPolicy: IfNotPresent # Use local image if present
+        ports:
+        - containerPort: 8000 # Assuming your ingestion service exposes a port (adjust if needed)
+        env:
+        # Database credentials from Kubernetes Secret
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: database
+        - name: BSKY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: handle
+        - name: BSKY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: bsky_password
+        - name: HANDLE
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: handle
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: bsky_password
+        # Connect to Cloud SQL Proxy on localhost
+        - name: POSTGRES_HOST
+          value: "127.0.0.1"
+        - name: POSTGRES_PORT
+          value: "5432"
+        # Environment variables from your Dockerfile or application needs
+        - name: FLASK_ENV
+          value: "development"
+        - name: SERVICE_DID
+          value: "did:web:bluesky-muted-words-plus-788033931517.us-east1.run.app" # Example, update as needed
+        - name: HOSTNAME
+          value: "bluesky-muted-words-plus-788033931517.us-east1.run.app" # Example, update as needed
+        - name: FEED_URI
+          value: "at://did:plc:btd7cocvy4na2wyowrpbo64o/app.bsky.feed.generator/bluesky-muted-words-plus" # Example, update as needed
+        - name: DEFAULT_DID
+          value: "did:plc:btd7cocvy4na2wyowrpbo64o" # Example, update as needed
+        - name: IGNORE_REPLY_POSTS
+          value: "true"
+        - name: IGNORE_OLD_POSTS
+          value: "true"
+        - name: MODEL_NAME
+          value: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        - name: SHOW_THRESHOLD
+          value: "0.750"
+        - name: HIDE_THRESHOLD
+          value: "0.575"
+        - name: AMBIGUOUS_POST_POLICY
+          value: "HIDE"
+        - name: BIAS_WEIGHT
+          value: "0.25"
+        - name: SOFTMAX_TEMPERATURE
+          value: "1.0"
+        - name: DB_RECORD_TTL
+          value: "110"
+        - name: DB_THREAD_HYSTERESIS
+          value: "10"
+        # Explicitly point to the mounted Google Service Account key
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
+        # Project IDs, useful for your application logic
+        - name: PROJECT_ID
+          value: "bluesky-muted-words-plus"
+        - name: GCP_PROJECT
+          value: "bluesky-muted-words-plus"
+        - name: GCLOUD_PROJECT
+          value: "bluesky-muted-words-plus"
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "bluesky-muted-words-plus"
+        - name: CLOUDSDK_CORE_PROJECT
+          value: "bluesky-muted-words-plus"
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+        # Liveness and Readiness Probes (adjust based on your service's actual health check)
+        livenessProbe:
+          exec:
+            command: ["pgrep", "-f", "post_ingestion_service_main.py"] # Adjust if your main script name differs
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: ["pgrep", "-f", "post_ingestion_service_main.py"] # Adjust if your main script name differs
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        # Mount the secret containing the Google Service Account key
+        - name: google-cloud-key
+          mountPath: "/var/secrets/google" # Directory where the key will be mounted
+          readOnly: true
+        # ... (any other necessary volume mounts for your application) ...
+
+      - name: cloudsql-proxy
+        image: gcr.io/cloud-sql-proxy/cloud-sql-proxy:latest # Image to pull from GCR
+        imagePullPolicy: Always # Ensure it always attempts to pull the latest
+        command: ["/cloud_sql_proxy"]
+        args:
+          # IMPORTANT: Replace these placeholders with your actual Cloud SQL instance details
+          # Format: project-id:region:instance-name
+          - "-instances=bluesky-muted-words-plus:us-east1:pgvector-db=tcp:5432"
+          # Point to the mounted service account key for proxy authentication
+          - "-credential_file=/var/secrets/google/key.json"
+        securityContext:
+          runAsNonRoot: true
+          # allowPrivilegeEscalation: false # Uncomment for stricter security if desired
+        env:
+          # Proxy also needs the credentials to authenticate with GCP
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: "/var/secrets/google/key.json"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+        volumeMounts:
+        # Mount the secret containing the Google Service Account key
+        - name: google-cloud-key
+          mountPath: "/var/secrets/google" # Directory where the key will be mounted
+          readOnly: true
+
+      volumes:
+      # Define the volume for the Kubernetes Secret
+      - name: google-cloud-key
+        secret:
+          secretName: google-application-credentials # This must match the name of the secret created in Step 2 of the previous instructions
+          items:
+          - key: key.json # This must match the key name used when creating the secret
+            path: key.json # The filename it will appear as within the mounted directory
+      # ... (any other volumes your pod needs, like for SpaCy models or persistent storage) ...
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: post-ingestion-service
+  namespace: bluesky-muted-words-plus # Ensure this matches your namespace
+  labels:
+    app: post-ingestion-service
+spec:
+  selector:
+    app: post-ingestion-service # Selects pods with this label
+  ports:
+  - protocol: TCP
+    port: 8000 # The port this service will expose
+    targetPort: 8000 # The port the container listens on (ingestion-worker's port)
+  type: ClusterIP # Internal service within the cluster

@@ -1,0 +1,103 @@
+# k8s_yaml_files/postgres-feed-database-minikube-only.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-db
+  namespace: bluesky-muted-words-plus
+  labels:
+    app: postgres
+spec:
+  replicas: 1 # Single instance for local dev
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+      - name: postgres
+        image: ankane/pgvector:latest # Your pgvector image from docker-compose
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: database
+        - name: PGDATA # Explicitly set PGDATA
+          value: "/var/lib/postgresql/data/pgdata" # Use a subdirectory to allow initial setup scripts to run
+        volumeMounts:
+        - name: pgdata # Mount for persistent data
+          mountPath: /var/lib/postgresql/data
+        # Health check for pg_isready
+        livenessProbe:
+          exec:
+            command: ["/bin/sh", "-c", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: ["/bin/sh", "-c", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost"]
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+      volumes:
+      - name: pgdata # Define a persistent volume for PostgreSQL data
+        persistentVolumeClaim:
+          claimName: postgres-pv-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service # The name your other services will use to connect
+  namespace: bluesky-muted-words-plus
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+  - protocol: TCP
+    port: 5432 # The port the service exposes
+    targetPort: 5432 # The port the container listens on
+  type: ClusterIP # Internal service, not exposed outside the cluster
+---
+apiVersion: storage.k8s.io/v1 # Define a StorageClass
+kind: StorageClass
+metadata:
+  name: retain-storageclass # Name your new StorageClass
+  namespace: bluesky-muted-words-plus # StorageClass is not namespaced, this will be ignored, but putting it for consistency
+provisioner: k8s.io/minikube-hostpath # Minikube's default provisioner
+reclaimPolicy: Retain # <-- Set reclaimPolicy here
+volumeBindingMode: Immediate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim # Request a persistent volume for your DB data
+metadata:
+  name: postgres-pv-claim
+  namespace: bluesky-muted-words-plus
+spec:
+  accessModes:
+    - ReadWriteOnce # Can be mounted as read-write by a single node
+  resources:
+    requests:
+      storage: 5Gi # Request 5GB of storage (adjust as needed)
+  volumeMode: Filesystem
+  storageClassName: retain-storageclass # <-- Reference the new StorageClass here
