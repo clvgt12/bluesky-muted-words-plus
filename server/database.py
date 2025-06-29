@@ -105,27 +105,20 @@ def fetch_user_lists_fields(did: str):
         row.black_list_dim
     )
 
-def cleanup_expired_posts(ttl_seconds: int = DB_RECORD_TTL, hysteresis_seconds: int = DB_THREAD_HYSTERESIS):
+def cleanup_expired_posts(ttl_seconds: int = DB_RECORD_TTL): # Removed hysteresis_seconds and while loop
     """
-    Periodically deletes expired Post entries based on a configurable TTL.
+    Deletes expired Post entries based on a configurable TTL.
 
     Args:
         ttl_seconds (int): Time-to-live in seconds for Post entries before deletion.
-        hysteresis_seconds (int): Delay between cleanup cycles.
 
     Behavior:
-        Runs indefinitely in a loop, deleting posts older than `ttl_seconds`,
-        then sleeps for `ttl_seconds + hysteresis_seconds` before repeating.
+        Deletes posts older than `ttl_seconds`. Designed to be called once by a job.
     """
-    """Background task that removes expired Post row entries based on TTL."""
-    while True:
-        now = datetime.now(timezone.utc)
-        cutoff = now - timedelta(seconds=ttl_seconds)
+    logger.info(f"➡️ [TTL Cleanup] Starting cleanup process for posts older than {ttl_seconds} seconds.")
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(seconds=ttl_seconds)
 
-        expired_posts = Post.select().where(Post.indexed_at < cutoff)
-        expired_post_ids = [post.id for post in expired_posts]
-        if expired_post_ids:
-            Post.delete().where(Post.id.in_(expired_post_ids)).execute()
-            logger.info(f"[TTL Cleanup] Deleted {len(expired_post_ids)} expired posts at {datetime.now(timezone.utc)}")
-
-        time.sleep(ttl_seconds + hysteresis_seconds)
+    # Use a more efficient deletion if possible, or paginated deletion for very large tables
+    deleted_count = Post.delete().where(Post.indexed_at < cutoff).execute()
+    logger.info(f"✅ [TTL Cleanup] Deleted {deleted_count} expired posts at {datetime.now(timezone.utc)}")
