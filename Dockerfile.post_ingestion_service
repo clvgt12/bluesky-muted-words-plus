@@ -1,0 +1,57 @@
+# Use the official Python image as a base
+FROM python:3.12-slim-bookworm
+
+# Set application environment
+# Suppress interactive prompts during apt-get install
+ENV DEBIAN_FRONTEND=noninteractive 
+ENV PYTHONUNBUFFERED=1
+ENV APP_HOME=/home/appuser
+ENV NLTK_DATA=${APP_HOME}/nltk_data
+# Removed SPACY_MODEL_DIR as we will let spacy install to default site-packages
+# Keep SPACY_DATA for potential other data needs
+ENV SPACY_DATA=${APP_HOME}/spacy_models 
+ENV PYTHONPATH=${APP_HOME}
+ENV PATH="${PATH}:${APP_HOME}/.local/bin"
+# Copy huggingface offline model cache
+ENV HF_HUB_OFFLINE=1
+ENV HF_HOME=${APP_HOME}/.cache/huggingface
+# Set FLASK_ENV to development for local Minikube testing
+ENV FLASK_ENV=development
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    curl \
+    procps \ 
+    locales \
+    locales-all \
+    postgresql-client \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Configure locale to ensure consistent text processing
+RUN locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+RUN adduser --disabled-password --gecos "" appuser
+WORKDIR ${APP_HOME}
+RUN chown appuser:appuser ${APP_HOME}
+USER appuser
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Download NLTK + SpaCy models
+# spacy download now installs to default site-packages location
+RUN mkdir -p ${NLTK_DATA} && \
+    python -m nltk.downloader -d ${NLTK_DATA} wordnet punkt stopwords && \
+    python -m spacy download en_core_web_sm -q
+
+COPY . ${APP_HOME}
+
+# Command to run the post ingestion service
+CMD ["python", "server/post_ingestion_service_main.py"]
