@@ -17,7 +17,18 @@ from urllib.parse import urlparse
 from server.config import BIAS_WEIGHT
 
 logger = setup_logger(__name__)
-nlp = spacy.load("en_core_web_sm")
+try:
+    nlp = spacy.load("en_core_web_sm")
+    # Increase the max_length to handle larger documents.
+    nlp.max_length = 5000000 # 5 million characters
+except IOError as e:
+    logger.error(f"Error loading SpaCy model: {e}")
+    # Depending on your application's tolerance, you might want to raise an exception here
+    # or load a "dummy" nlp object if text processing isn't strictly critical for every path.
+    nlp = None # Set to None or a minimal alternative if model fails to load
+except Exception as e: # Catch any other potential errors during spacy load
+    logger.error(f"An unexpected error occurred during SpaCy model loading: {e}")
+    nlp = None
 
 def extract_extra_text(record: Union[dict, BaseModel]) -> str:
     """
