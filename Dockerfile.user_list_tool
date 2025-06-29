@@ -33,9 +33,9 @@ RUN apt-get update && \
 # Configure locale to ensure consistent text processing
 RUN locale-gen en_US.UTF-8 && \
     update-locale LANG=en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
 RUN adduser --disabled-password --gecos "" appuser
 WORKDIR ${APP_HOME}
