@@ -1,0 +1,79 @@
+# k8s_yaml_files/cleanup-expired-posts.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup-expired-posts
+  namespace: bluesky-muted-words-plus # Ensure this matches your namespace
+spec:
+  # Schedule: 
+  # Example: "0 * * * *" Run every hour (at the top of the hour)
+  # Example: "0 0 * * *" for daily at midnight UTC
+  # Example: "*/15 * * * *" for every 15 minutes
+  schedule: "*/15 * * * *"
+  # How to handle concurrent jobs if the previous one is still running
+  concurrencyPolicy: Forbid # Do not allow concurrent runs of the same job
+  # How long to keep history of successful and failed jobs
+  successfulJobsHistoryLimit: 1 # Keep history of the last 1 successful job run
+  failedJobsHistoryLimit: 1   # Keep history of the last 1 failed job run
+  # Specifies the job that will be created when the CronJob runs
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          # Restart policy for the job's pod. OnFailure retries within the job.
+          # Never means the job fails if the container exits non-zero, no retries.
+          restartPolicy: OnFailure # Retry the container if it fails
+          # Termination grace period to allow the script to finish cleanup
+          terminationGracePeriodSeconds: 60
+          containers:
+          - name: cleanup-expired-posts-worker
+            # Image built from Dockerfile.cleanup-job
+            image: bluesky-cleanup-expired-posts:latest
+            imagePullPolicy: IfNotPresent # Use local image if present
+            env:
+            # Database credentials from Kubernetes Secret
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: database
+            # Connect to proxy
+            - name: POSTGRES_HOST
+              value: "postgres-service"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: DB_RECORD_TTL # Pass the TTL to the cleanup script
+              value: "110" # This should match your desired TTL in seconds from config.py
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "256Mi" # Adjust based on how memory-intensive cleanup is
+              limits:
+                cpu: "200m"
+                memory: "512Mi" # Adjust based on how memory-intensive cleanup is
+          # - name: cloudsql-proxy # Cloud SQL Proxy sidecar
+          #   image: gcr.io/cloud-sql-proxy/cloud-sql-proxy:latest
+          #   command:
+          #   - "/cloud_sql_proxy"
+          #   args:
+          #   # For Minikube, connect to the internal K8s Service name for Postgres
+          #   - "--port=5432"
+          #   - "--address=127.0.0.1"
+          #   - "postgres-service.bluesky-muted-words-plus" # Service name with namespace
+          #   resources:
+          #     requests:
+          #       cpu: "50m"
+          #       memory: "64Mi"
+          #     limits:
+          #       cpu: "100m"
+          #       memory: "128Mi"
