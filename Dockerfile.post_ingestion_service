@@ -1,29 +1,33 @@
 # Use the official Python image as a base
-FROM python:3.12-slim-bookworm
+# Use a CUDA-enabled PyTorch base image for GPU support
+FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
 
 # Set application environment
 # Suppress interactive prompts during apt-get install
 ENV DEBIAN_FRONTEND=noninteractive 
 ENV PYTHONUNBUFFERED=1
-ENV APP_HOME=/home/appuser
+# Keep APP_HOME as /app for consistency with previous setup
+ENV APP_HOME=/home/appuser 
 ENV NLTK_DATA=${APP_HOME}/nltk_data
-# Removed SPACY_MODEL_DIR as we will let spacy install to default site-packages
-# Keep SPACY_DATA for potential other data needs
-ENV SPACY_DATA=${APP_HOME}/spacy_models 
+# SPACY_MODEL_DIR is used during download, SPACY_DATA for runtime lookup if needed.
+# Let spaCy install models into site-packages, which is common with PyTorch base images.
+# Removed SPACY_MODEL_DIR as a distinct environment variable for simplicity.
 ENV PYTHONPATH=${APP_HOME}
-ENV PATH="${PATH}:${APP_HOME}/.local/bin"
+ENV PATH="/home/appuser/.local/bin:${PATH}" 
 # Copy huggingface offline model cache
 ENV HF_HUB_OFFLINE=1
 ENV HF_HOME=${APP_HOME}/.cache/huggingface
 # Set FLASK_ENV to development for local Minikube testing
 ENV FLASK_ENV=development
 
+# Install system dependencies needed for Python packages and runtime
+# procps for pgrep (used in probes), build-essential for compilation, git/curl for downloads, postgresql-client
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     git \
     curl \
-    procps \ 
+    procps \
     locales \
     locales-all \
     postgresql-client \
@@ -37,20 +41,26 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
+# Create a non-root user and switch to it for security best practices
 RUN adduser --disabled-password --gecos "" appuser
 WORKDIR ${APP_HOME}
-RUN chown appuser:appuser ${APP_HOME}
+# Ensure appuser owns the workdir and its contents
+RUN chown -R appuser:appuser ${APP_HOME} 
 USER appuser
 
+# Copy requirements.txt and install Python dependencies
+# PyTorch is already in the base image.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Download NLTK + SpaCy models
-# spacy download now installs to default site-packages location
+# SpaCy models will install into Python's site-packages when using 'download -q'.
+# Ensure the NLTK_DATA directory is created and owned by appuser.
 RUN mkdir -p ${NLTK_DATA} && \
     python -m nltk.downloader -d ${NLTK_DATA} wordnet punkt stopwords && \
-    python -m spacy download en_core_web_sm -q
+    python -m spacy download en_core_web_sm -q 
 
+# Copy the rest of the application code
 COPY . ${APP_HOME}
 
 # Command to run the post ingestion service

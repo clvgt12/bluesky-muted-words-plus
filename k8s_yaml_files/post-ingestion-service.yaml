@@ -17,6 +17,15 @@ spec:
       labels:
         app: post-ingestion-service
     spec:
+      # If using GPU, ensure your Minikube has a GPU-enabled driver and setup
+      nodeSelector:
+        # For Minikube with --gpus all, the node will have this label.
+        # You might need to check your minikube node labels: kubectl get nodes -o yaml
+        "kubernetes.io/hostname": "minikube" # Targets the minikube node specifically
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
       containers:
       - name: ingestion-worker
         image: bluesky-post-ingestion-service:latest # Your locally built image

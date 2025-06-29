@@ -17,6 +17,13 @@ spec:
       labels:
         app: user-list-tool
     spec:
+      # --- GPU Configuration for User List Tool (if ML inference is GPU-accelerated) ---
+      nodeSelector:
+        "kubernetes.io/hostname": "minikube" # Targets the minikube node specifically
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
       containers:
       - name: user-list-tool-container
         image: bluesky-user-list-tool:latest # Image built locally by Minikube's Docker daemon
