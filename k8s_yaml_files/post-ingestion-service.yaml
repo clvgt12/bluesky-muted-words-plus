@@ -119,9 +119,11 @@ spec:
           requests:
             cpu: "500m"
             memory: "8Gi" # Increased memory request for larger SpaCy processing
+            nvidia.com/gpu: "1" # Limit to 1 GPU
           limits:
             cpu: "2"
             memory: "16Gi" # Increased memory limit for larger SpaCy processing
+            nvidia.com/gpu: "1" # Limit to 1 GPU
         # Liveness Probe (exec check for process - now 'pgrep' is available in the container)
         livenessProbe:
           exec:
