@@ -5,7 +5,8 @@ from dotenv import load_dotenv, find_dotenv # Keep dotenv imports for conditiona
 
 # Load from .env.development only if FLASK_ENV is 'development'
 # In production K8s, FLASK_ENV will NOT be 'development', so .env files won't be loaded.
-if os.environ.get('FLASK_ENV') == 'development':
+FLASK_ENV = os.environ.get('FLASK_ENV','production')
+if FLASK_ENV == 'development':
     # Ensure this points to your dev .env file if it's named differently
     dotenv_path = Path(".env.development")
     if dotenv_path.exists():
