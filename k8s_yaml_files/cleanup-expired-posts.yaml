@@ -52,8 +52,6 @@ spec:
               value: "postgres-service"
             - name: POSTGRES_PORT
               value: "5432"
-            - name: DB_RECORD_TTL # Pass the TTL to the cleanup script
-              value: "110" # This should match your desired TTL in seconds from config.py
             resources:
               requests:
                 cpu: "100m"

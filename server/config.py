@@ -67,7 +67,6 @@ THREADS = int(os.getenv("THREADS", 4))
 
 # Database TTL cleanup parameters (relevant for cleanup job component)
 DB_RECORD_TTL = int(os.getenv("DB_RECORD_TTL", 1800))
-DB_THREAD_HYSTERESIS = int(os.getenv("DB_THREAD_HYSTERESIS", 15)) # This might become irrelevant for CronJob
 
 # Model parameters (relevant for feed-generator and user-list-tool)
 MODEL_NAME = os.getenv("MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")

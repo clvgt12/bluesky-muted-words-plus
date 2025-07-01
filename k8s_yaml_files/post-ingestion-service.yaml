@@ -102,10 +102,6 @@ spec:
           value: "0.25"
         - name: SOFTMAX_TEMPERATURE
           value: "1.0"
-        - name: DB_RECORD_TTL
-          value: "110"
-        - name: DB_THREAD_HYSTERESIS
-          value: "10"
         # Uncomment and configure these if you re-enable GCP integration later
         # - name: GOOGLE_APPLICATION_CREDENTIALS
         #   value: "/var/secrets/google/key.json"

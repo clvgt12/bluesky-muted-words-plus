@@ -4,7 +4,7 @@ import time
 import numpy as np
 import peewee
 from playhouse.postgres_ext import PostgresqlExtDatabase
-from server.config import DEFAULT_DID, DB_RECORD_TTL, DB_THREAD_HYSTERESIS, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+from server.config import DEFAULT_DID, DB_RECORD_TTL, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 from server.logger import setup_logger
 from server.vector import pgstring_to_vector, vector_to_pgstring
 
@@ -105,7 +105,7 @@ def fetch_user_lists_fields(did: str):
         row.black_list_dim
     )
 
-def cleanup_expired_posts(ttl_seconds: int = DB_RECORD_TTL): # Removed hysteresis_seconds and while loop
+def cleanup_expired_posts(ttl_seconds: int = DB_RECORD_TTL): 
     """
     Deletes expired Post entries based on a configurable TTL.
 
