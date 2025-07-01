@@ -1,6 +1,6 @@
 # Dockerfile.user_list_tool
-# Use a CUDA-enabled PyTorch base image for GPU support
-FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
+# Use a slim Python base image for smaller size (CPU-only)
+FROM python:3.12-slim-bookworm
 
 # Set application environment
 # Suppress interactive prompts during apt-get install
