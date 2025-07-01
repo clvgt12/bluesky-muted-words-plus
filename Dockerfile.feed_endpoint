@@ -1,0 +1,64 @@
+# Dockerfile.feed-endpoint
+# Use a slim Python base image for smaller size (CPU-only)
+FROM python:3.12-slim-bookworm
+
+# Set application environment
+# Suppress interactive prompts during apt-get install
+ENV DEBIAN_FRONTEND=noninteractive 
+ENV PYTHONUNBUFFERED=1
+ENV APP_HOME=/home/appuser
+ENV NLTK_DATA=${APP_HOME}/nltk_data
+ENV PYTHONPATH=${APP_HOME}
+ENV PATH="/home/appuser/.local/bin:${PATH}"
+
+# Install system dependencies needed for Python packages and runtime
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    curl \
+    procps \
+    locales \
+    locales-all \
+    postgresql-client \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Configure locale to ensure consistent text processing
+RUN locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+# Create a non-root user and switch to it for security best practices
+RUN adduser --disabled-password --gecos "" appuser
+WORKDIR ${APP_HOME}
+RUN chown -R appuser:appuser ${APP_HOME}
+USER appuser
+
+# Copy requirements.txt and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Download NLTK + SpaCy models
+# Ensure directories are created and owned by appuser
+RUN mkdir -p ${NLTK_DATA} && \
+    python -m nltk.downloader -d ${NLTK_DATA} wordnet punkt stopwords && \
+    python -m spacy download en_core_web_sm -q
+
+# Copy the rest of the application code
+COPY . ${APP_HOME}
+
+# Copy huggingface offline model cache
+ENV HF_HUB_OFFLINE=1
+ENV HF_HOME=${APP_HOME}/.cache/huggingface
+
+# Expose the port Waitress will listen on
+EXPOSE 8000
+
+# Set FLASK_ENV to development for local Minikube testing
+ENV FLASK_ENV=development
+
+# Entrypoint: use waitress to serve the Flask app
+CMD ["python", "server/feed_endpoint.py"]

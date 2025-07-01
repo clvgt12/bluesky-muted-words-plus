@@ -16,21 +16,14 @@ spec:
       labels:
         app: feed-endpoint
     spec:
-      # If using GPU, ensure your Minikube has a GPU-enabled driver and setup
-      # If not using GPU, remove the nodeSelector, tolerations, and nvidia.com/gpu limits/requests
-      # This example assumes NVIDIA T4 GPU for illustration
-      nodeSelector:
-        cloud.google.com/gke-accelerator: nvidia-tesla-t4 # Label on GPU nodes (for GKE), or similar for Minikube
-      tolerations:
-      - key: nvidia.com/gpu
-        operator: Exists
-        effect: NoSchedule
+      # --- Removed GPU Configuration: This service is CPU-only ---
       containers:
-      - name: flask-app
+      - name: feed-endpoint
         # Image will be built locally by Minikube's Docker daemon.
         # For GKE, this would be your Google Artifact Registry path:
         # e.g., us-east1-docker.pkg.dev/your-project-id/your-repo/bluesky-feed-endpoint:latest
         image: bluesky-feed-endpoint:latest
+        imagePullPolicy: IfNotPresent # Use local image if present, avoid pulling
         ports:
         - containerPort: 8000
         env:
@@ -50,9 +43,24 @@ spec:
             secretKeyRef:
               name: postgres-credentials
               key: database
+        - name: BSKY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: bsky_password
+        - name: HANDLE
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: handle
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: bsky_password
         # Other non-sensitive environment variables from config.py and .env.development
-        - name: POSTGRES_HOST # Connect to proxy
-          value: "127.0.0.1"
+        - name: POSTGRES_HOST 
+          value: "postgres-service" 
         - name: POSTGRES_PORT
           value: "5432"
         - name: FLASK_ENV # Set for local dev, ensure it's 'production' for GKE
@@ -93,20 +101,9 @@ spec:
           value: "HIDE" # From .env.development
         - name: BIAS_WEIGHT
           value: "0.25" # From .env.development
+          # Changed SOFTMAX_TEMPERATURE from config.py to ensure it's a float
         - name: SOFTMAX_TEMPERATURE
           value: "1.0" # From .env.development
-        # Sensitive credentials from Secret for Bsky connection (if Flask app needs to act as a client)
-        - name: BSKY_USERNAME # HANDLE from .env.development
-          valueFrom:
-            secretKeyRef:
-              name: postgres-credentials # Reusing, but ideally a dedicated secret for Bsky creds
-              key: handle
-        - name: BSKY_PASSWORD # PASSWORD from .env.development
-          valueFrom:
-            secretKeyRef:
-              name: postgres-credentials
-              key: bsky_password # Renamed key in secret for clarity
-
         resources:
           requests:
             cpu: "1000m" # 1 CPU core requested
@@ -132,22 +129,22 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 2
-      - name: cloudsql-proxy # Cloud SQL Proxy sidecar
-        image: gcr.io/cloud-sql-proxy/cloud-sql-proxy:2.10.0 # Use the latest v2
-        command:
-        - "/cloud_sql_proxy"
-        args:
-        # For Minikube, connect to the internal K8s Service name for Postgres
-        - "--port=5432"
-        - "--address=127.0.0.1"
-        - "postgres-service" # This maps to the ClusterIP Service defined in k8s-minikube-postgres.yaml
-        resources:
-          requests:
-            cpu: "100m"
-            memory: "128Mi"
-          limits:
-            cpu: "200m"
-            memory: "256Mi"# k8s-feed-endpoint-service.yaml
+      # - name: cloudsql-proxy # Cloud SQL Proxy sidecar
+      #   image: gcr.io/cloud-sql-proxy/cloud-sql-proxy:latest # Corrected to 'latest'
+      #   command:
+      #   - "/cloud_sql_proxy"
+      #   args:
+      #   # For Minikube, connect to the internal K8s Service name for Postgres
+      #   - "--port=5432"
+      #   - "--address=127.0.0.1"
+      #   - "postgres-service.bluesky-muted-words-plus" # Corrected FQDN
+      #   resources:
+      #     requests:
+      #       cpu: "100m"
+      #       memory: "128Mi"
+      #     limits:
+      #       cpu: "200m"
+      #       memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service

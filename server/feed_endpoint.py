@@ -1,17 +1,13 @@
-# app.py 
+# server/feed_endpoint.py (renamed from app.py)
+import argparse
 import sys
-import signal
-import threading
-
 from server import config
-from server import data_stream
-
 from flask import Flask, jsonify, request
 from server.algos import algos
 from server.algos.feed import handler, generate_fake_jwt
 from server.data_filter import operations_callback
-from server.database import cleanup_expired_posts
 from server.logger import setup_logger
+from waitress import serve # Only needed if this file is the main entry point for waitress
 
 app = Flask(__name__)
 
@@ -19,47 +15,15 @@ app = Flask(__name__)
 # Configure logging based on Flask’s debug flag
 # ───────────────────────────────────────────────────────
 
-logger = setup_logger(__name__)  # 👈 This tags the logger with the module path
+logger = setup_logger(__name__)
 
 # ───────────────────────────────────────────────────────
-# Start a database TTL cleanup thread
+# Removed background thread startup logic.
+# These will be separate Kubernetes Deployments/CronJobs.
 # ───────────────────────────────────────────────────────
 
-database_ttl_cleanup_stop_event = threading.Event()
-
-def start_database_ttl_cleanup_thread():
-    ttl_thread = threading.Thread(
-        target=cleanup_expired_posts,
-        args=(),
-        daemon=True  # so it won't block shutdown
-    )
-    ttl_thread.start()
-    return ttl_thread
-
-# ───────────────────────────────────────────────────────
-# Configure and start the data stream in a separate thread
-# ───────────────────────────────────────────────────────
-
-data_stream_stop_event = threading.Event()
-
-def start_data_stream_thread():
-    data_stream_thread = threading.Thread(
-        target=data_stream.run,
-        args=(config.SERVICE_DID, operations_callback, data_stream_stop_event),
-        daemon=True,
-    )
-    data_stream_thread.start()
-    return data_stream_thread
-
-def sigint_handler(*_):
-    print('Stopping background threads...')
-    database_ttl_cleanup_stop_event.set()
-    data_stream_stop_event.set()
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, sigint_handler)
-signal.signal(signal.SIGTERM, sigint_handler)
-signal.signal(signal.SIGABRT, sigint_handler)
+# Removed sigint_handler and signal.signal calls.
+# Kubernetes will send SIGTERM for graceful shutdown.
 
 # ───────────────────────────────────────────────────────
 # Define REST API and enter event loop
@@ -69,7 +33,7 @@ signal.signal(signal.SIGABRT, sigint_handler)
 def index():
     """
     Root endpoint shows the application name DISPLAY_NAME and
-    description DESCRIPTION used when the custom feed registers 
+    description DESCRIPTION used when the custom feed registers
     itself on the Bluesky network
     """
     if not config.DISPLAY_NAME or not config.DESCRIPTION:
@@ -94,8 +58,8 @@ def test_feed_handler():
 
     Injects a fake Authorization header using DEFAULT_DID.
     """
-    
-    if not config.FLASK_DEBUG:
+
+    if config.FLASK_ENV == "production":
         return jsonify({"error": "Test handler is disabled in production"}), 403
 
     # 1) Extract query params
@@ -163,7 +127,7 @@ def get_feed_skeleton():
     from server.database import UserLists
     if not UserLists.select().where(UserLists.did == requester_did).exists():
         return 'Unauthorized', 401
-        
+
     try:
         cursor = request.args.get('cursor', default=None, type=str)
         limit = request.args.get('limit', default=20, type=int)
@@ -172,3 +136,25 @@ def get_feed_skeleton():
         return 'Malformed cursor', 400
 
     return jsonify(body)
+
+def main():
+    # Define parser and arguments
+    parser = argparse.ArgumentParser(description="Start Bluesky Flask app with Waitress.")
+    parser.add_argument('--host', default=config.HOST, help=f"Hostname (default: {config.HOST})")
+    parser.add_argument('--port', type=int, default=int(config.PORT), help=f"Port (default: {config.PORT})")
+    parser.add_argument('--threads', type=int, default=int(config.THREADS), help=f"Thread count (default: {config.THREADS})")
+
+    # Check if user asked for help *before* parsing
+    if '--help' in sys.argv or '-h' in sys.argv:
+        parser.print_help()
+        sys.exit(1)
+
+    # Parse arguments normally
+    args = parser.parse_args()
+
+    # Start Waitress server
+    print(f"➡️ Starting web server with host={args.host}, port={args.port} and {args.threads} threads")
+    serve(app, host=args.host, port=args.port, threads=args.threads)
+
+if __name__ == '__main__':
+    main()

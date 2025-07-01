@@ -8,9 +8,12 @@ if [[ -f .env.development ]]; then
   export $(grep -v '^#' .env.development | xargs)
 fi
 
+# Adapted for minikube environment
+
+HOST_IP=$(kubectl get service feed-endpoint-service -n bluesky-muted-words-plus -o jsonpath='{.spec.clusterIP}')
 DEFAULT_DID="${DEFAULT_DID:-did:plc:btd7cocvy4na2wyowrpbo64o}"
 AUTH_HEADER="Authorization: Bearer dev:$DEFAULT_DID"
-BASE_URL="http://localhost:8000"
+BASE_URL="http://$HOST_IP:80"
 ENDPOINTS=("/" "/health/" "/test-feed-handler/?limit=20")
 
 for endpoint in "${ENDPOINTS[@]}"; do
