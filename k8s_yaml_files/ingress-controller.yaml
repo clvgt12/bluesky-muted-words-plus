@@ -1,0 +1,31 @@
+# k8s_yaml_files/ingress-controller.yaml
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bluesky-app-ingress # Renamed for clarity
+  namespace: bluesky-muted-words-plus # In the same namespace as your services
+  annotations:
+    kubernetes.io/ingress.class: nginx # This refers to the IngressClass created above
+    # This annotation tells NGINX to rewrite the URL path before sending it to the backend.
+    # The (.*) captures everything after the base path, and /$1 sends it to the root of the backend service.
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  rules:
+  - host: minikube.lan # Updated to your desired hostname
+    http:
+      paths:
+      - path: /feed/(.*) # Regex to capture everything after /feed/
+        pathType: ImplementationSpecific # <-- CORRECTED: Change to ImplementationSpecific
+        backend:
+          service:
+            name: feed-endpoint-service # Name of your feed-endpoint ClusterIP Service
+            port:
+              number: 80 # The port the feed-endpoint-service exposes (its service port)
+      - path: /admin-portal/(.*) # Regex to capture everything after /admin-portal/
+        pathType: ImplementationSpecific # <-- CORRECTED: Change to ImplementationSpecific
+        backend:
+          service:
+            name: user-list-tool-service # Name of your user-list-tool ClusterIP Service
+            port:
+              number: 8501 # The port the user-list-tool-service exposes (its service port)
