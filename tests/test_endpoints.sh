@@ -22,10 +22,6 @@ INGRESS_HOST="minikube.lan"
 # This is the NodePort exposed by minikube tunnel for HTTP traffic.
 INGRESS_PORT="30080"
 
-# Get the Minikube IP for --connect-to. This ensures curl connects to the Minikube VM.
-# IMPORTANT: Use 'tr -d "\n"' to remove any newline characters from the output of minikube ip.
-MINIKUBE_IP=$(minikube ip | tr -d '\n')
-
 FEED_BASE_PATH="/feed"     # Path for the feed-endpoint service in Ingress
 ADMIN_BASE_PATH="/admin-portal" # Path for the user-list-tool service in Ingress
 
@@ -60,6 +56,18 @@ if ! check_minikube_tunnel; then
   exit 1
 fi
 
+# Get the Minikube IP for --connect-to. This ensures curl connects to the Minikube VM.
+# IMPORTANT: Use 'tr -d "\n"' to remove any newline characters from the output of minikube ip.
+MINIKUBE_IP=$(minikube ip | tr -d '\n')
+# Perform DNS resolution on INGRESS_HOST to ensure it resolves ti MINIKUBE_IP
+DNS_IP=$(nslookup $INGRESS_HOST|awk '/^Address: / {print $2}'|tail -1)
+if [[ "$MINIKUBE_IP" != "$DNS_IP" ]]; then
+  echo "❌ DNS resolution check failed."
+  exit 1
+else
+  echo "✅ DNS resolution passed!"
+fi
+
 # --- Test Feed Endpoint ---
 echo "--- Testing Feed Endpoint via Ingress ---"
 for endpoint in "${ENDPOINTS[@]}"; do
@@ -72,27 +80,25 @@ for endpoint in "${ENDPOINTS[@]}"; do
   # Use an array for CURL_COMMAND_ARGS to ensure proper argument parsing by curl.
   # This avoids issues with spaces, quotes, and special characters in arguments.
   CURL_COMMAND_ARGS=(
+    -v
     -s
     -w "%{http_code}"
     --connect-to "$INGRESS_HOST:$INGRESS_PORT:$MINIKUBE_IP" # No internal quotes needed here
     -H "Host: $INGRESS_HOST" # No internal quotes needed here
   )
+  response=$(curl "${CURL_COMMAND_ARGS[@]}" -H "$AUTH_HEADER" "$REQUEST_URL")
 
-  # Execute curl command, capturing all output (stdout and stderr)
-  if [[ "$endpoint" == *"$FEED_BASE_PATH/test-feed-handler/"* ]]; then
-    response_output=$(curl "${CURL_COMMAND_ARGS[@]}" -H "$AUTH_HEADER" "$REQUEST_URL")
-  else
-    response_output=$(curl "${CURL_COMMAND_ARGS[@]}" "$REQUEST_URL")
-  fi
+  # Extract body and status from the combined output
+  body_and_headers="${response%???}" # Remove the last 3 characters (status code)
+  status="${response: -3}"
 
-  # Extract status code (last 3 characters)
-  status="${response_output: -3}"
-  # Extract body and headers (everything before the last 3 characters)
-  raw_output_before_status="${response_output%???}"
+  # Separate headers from body
+  headers=$(echo "$body_and_headers" | sed -n '/^< /p') # Lines starting with "< " are response headers
+  body=$(echo "$body_and_headers" | sed '/^< /d') # Remove header lines to get only body
 
-  # Separate headers from body (verbose output starts with '< ' or '* ')
-  headers=$(echo "$raw_output_before_status" | sed -n '/^< /p')
-  body=$(echo "$raw_output_before_status" | sed '/^< /d' | sed '/^\* /d')
+  echo "  --- Curl Verbose Output (Headers) ---"
+  echo "$headers"
+  echo "  -------------------------------------"
 
   if [[ "$status" == "200" ]]; then
     echo "  ✅ Status: 200 OK"
@@ -102,7 +108,6 @@ for endpoint in "${ENDPOINTS[@]}"; do
     continue
   fi
 
-  # Now, try to parse the cleaned body with jq
   echo "$body" | jq . >/dev/null 2>&1
   if [[ $? -eq 0 ]]; then
     echo "  ✅ JSON: Valid"
@@ -132,18 +137,23 @@ for endpoint in "${ENDPOINTS[@]}"; do
       # Use the Ingress hostname and path for subsequent paginated requests
       PAGED_REQUEST_URL="http://$INGRESS_HOST:$INGRESS_PORT$FEED_BASE_PATH/test-feed-handler/?cursor=$cursor&limit=20"
       PAGED_CURL_COMMAND_ARGS=(
+        -v
         -s
         -w "%{http_code}"
         --connect-to "$INGRESS_HOST:$INGRESS_PORT:$MINIKUBE_IP:$INGRESS_PORT"
         -H "Host: $INGRESS_HOST"
       )
-      paged_response_output=$(curl "${PAGED_CURL_COMMAND_ARGS[@]}" -H "$AUTH_HEADER" "$PAGED_REQUEST_URL")
+      paged_response=$(curl "${PAGED_CURL_COMMAND_ARGS[@]}" -H "$AUTH_HEADER" "$PAGED_REQUEST_URL")
       
-      paged_status="${paged_response_output: -3}"
-      paged_raw_output_before_status="${paged_response_output%???}"
+      paged_body_and_headers="${paged_response%???}"
+      paged_status="${paged_response: -3}"
 
-      paged_headers=$(echo "$paged_raw_output_before_status" | sed -n '/^< /p')
-      paged_body=$(echo "$paged_raw_output_before_status" | sed '/^< /d' | sed '/^\* /d')
+      paged_headers=$(echo "$paged_body_and_headers" | sed -n '/^< /p')
+      paged_body=$(echo "$paged_body_and_headers" | sed '/^< /d')
+
+      echo "    --- Curl Verbose Output (Headers) for Page $page ---"
+      echo "$paged_headers"
+      echo "    ---------------------------------------------------"
 
       if [[ "$paged_status" == "200" ]]; then
         echo "    ✅ Page $page Status: 200 OK"
