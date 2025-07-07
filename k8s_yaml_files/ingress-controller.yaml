@@ -3,29 +3,50 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: bluesky-app-ingress # Renamed for clarity
+  name: bluesky-core-ingress
   namespace: bluesky-muted-words-plus # In the same namespace as your services
   annotations:
     kubernetes.io/ingress.class: nginx # This refers to the IngressClass created above
-    # This annotation tells NGINX to rewrite the URL path before sending it to the backend.
-    # The (.*) captures everything after the base path, and /$1 sends it to the root of the backend service.
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    # No rewrite-target annotation here, as these paths are passed directly
 spec:
   rules:
-  - host: minikube.lan # Updated to your desired hostname
+  - host: minikube.lan # Your desired hostname for Minikube
     http:
       paths:
-      - path: /feed/(.*) # Regex to capture everything after /feed/
-        pathType: ImplementationSpecific # <-- CORRECTED: Change to ImplementationSpecific
+      # --- Paths for core Bluesky Feed Generator API (expected at root) ---
+      - path: / # Root path for the index() endpoint
+        pathType: Prefix
         backend:
           service:
-            name: feed-endpoint-service # Name of your feed-endpoint ClusterIP Service
+            name: feed-endpoint-service
             port:
-              number: 80 # The port the feed-endpoint-service exposes (its service port)
-      - path: /admin-portal/(.*) # Regex to capture everything after /admin-portal/
-        pathType: ImplementationSpecific # <-- CORRECTED: Change to ImplementationSpecific
+              number: 80 # Flask app's service port
+      - path: /health/ # Direct health check endpoint
+        pathType: Prefix
         backend:
           service:
-            name: user-list-tool-service # Name of your user-list-tool ClusterIP Service
+            name: feed-endpoint-service
             port:
-              number: 8501 # The port the user-list-tool-service exposes (its service port)
+              number: 80 # Flask app's service port
+      - path: /.well-known/did.json # Standard DID document path
+        pathType: ImplementationSpecific # CHANGED from Prefix to ImplementationSpecific
+        backend:
+          service:
+            name: feed-endpoint-service
+            port:
+              number: 80 # Flask app's service port
+      - path: /xrpc/app.bsky.feed.describeFeedGenerator # Describe feed generator endpoint
+        pathType: ImplementationSpecific # CHANGED from Prefix to ImplementationSpecific
+        backend:
+          service:
+            name: feed-endpoint-service
+            port:
+              number: 80 # Flask app's service port
+      - path: /xrpc/app.bsky.feed.getFeedSkeleton # Get feed skeleton endpoint
+        pathType: ImplementationSpecific # CHANGED from Prefix to ImplementationSpecific
+        backend:
+          service:
+            name: feed-endpoint-service
+            port:
+              number: 80 # Flask app's service port
+
