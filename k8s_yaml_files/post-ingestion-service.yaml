@@ -79,9 +79,9 @@ spec:
         - name: FLASK_ENV
           value: "development"
         - name: SERVICE_DID
-          value: "did:web:bluesky-muted-words-plus-788033931517.us-east1.run.app" # Example, update as needed
+          value: "did:web:bluesky-muted-words.vitalos.us" # Example, update as needed
         - name: HOSTNAME
-          value: "bluesky-muted-words-plus-788033931517.us-east1.run.app" # Example, update as needed
+          value: "bluesky-muted-words-plus.vitalos.us" # Example, update as needed
         - name: FEED_URI
           value: "at://did:plc:btd7cocvy4na2wyowrpbo64o/app.bsky.feed.generator/bluesky-muted-words-plus" # Example, update as needed
         - name: DEFAULT_DID

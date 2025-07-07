@@ -70,9 +70,9 @@ spec:
         - name: PORT # For Flask/Waitress
           value: "8000"
         - name: HOSTNAME
-          value: "bluesky-muted-words-plus-788033931517.us-east1.run.app" # From .env.development
+          value: "bluesky-muted-words-plus.vitalos.us" # From .env.development
         - name: SERVICE_DID # Derived from HOSTNAME if not set explicitly
-          value: "did:web:bluesky-muted-words-plus-788033931517.us-east1.run.app" # Based on HOSTNAME
+          value: "did:web:bluesky-muted-words-plus.vitalos.us" # Based on HOSTNAME
         - name: FEED_URI
           value: "at://did:plc:btd7cocvy4na2wyowrpbo64o/app.bsky.feed.generator/bluesky-muted-words-plus" # From .env.development
         - name: DEFAULT_DID
