@@ -22,7 +22,7 @@ INGRESS_HOST="minikube.lan"
 # This is the NodePort exposed by minikube tunnel for HTTP traffic.
 INGRESS_PORT="30080"
 
-FEED_BASE_PATH="/feed"     # Path for the feed-endpoint service in Ingress
+FEED_BASE_PATH=""     # Path for the feed-endpoint service in Ingress
 ADMIN_BASE_PATH="/admin-portal" # Path for the user-list-tool service in Ingress
 
 # Default DID and Auth Header
