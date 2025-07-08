@@ -1,0 +1,24 @@
+# k8s_yaml_files/postgres-feed-database-storage-minikube-only.yaml
+---
+apiVersion: storage.k8s.io/v1 # Define a StorageClass
+kind: StorageClass
+metadata:
+  name: retain-storageclass # Name your new StorageClass
+  namespace: bluesky-muted-words-plus # StorageClass is not namespaced, this will be ignored, but putting it for consistency
+provisioner: k8s.io/minikube-hostpath # Minikube's default provisioner
+reclaimPolicy: Retain # <-- Set reclaimPolicy here
+volumeBindingMode: Immediate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim # Request a persistent volume for your DB data
+metadata:
+  name: postgres-pv-claim
+  namespace: bluesky-muted-words-plus
+spec:
+  accessModes:
+    - ReadWriteOnce # Can be mounted as read-write by a single node
+  resources:
+    requests:
+      storage: 5Gi # Request 5GB of storage (adjust as needed)
+  volumeMode: Filesystem
+  storageClassName: retain-storageclass # <-- Reference the new StorageClass here

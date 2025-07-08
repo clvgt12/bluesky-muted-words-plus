@@ -34,15 +34,17 @@ spec:
               name: postgres-credentials
               key: password
         - name: POSTGRES_DB
+              # This assumes the database specified here (e.g., 'feed_database')
+              # will be created by the PostgreSQL entrypoint if it doesn't exist.
           valueFrom:
             secretKeyRef:
               name: postgres-credentials
               key: database
-        - name: PGDATA # Explicitly set PGDATA
-          value: "/var/lib/postgresql/data/pgdata" # Use a subdirectory to allow initial setup scripts to run
+        - name: PGDATA # Explicitly set PGDATA to the mount path itself
+          value: "/var/lib/postgresql/data" # <-- CORRECTED: Changed from /var/lib/postgresql/data/pgdata
         volumeMounts:
         - name: pgdata # Mount for persistent data
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/lib/postgresql/data # This is the root of the volume mount
         # Health check for pg_isready
         livenessProbe:
           exec:
@@ -78,26 +80,3 @@ spec:
     port: 5432 # The port the service exposes
     targetPort: 5432 # The port the container listens on
   type: ClusterIP # Internal service, not exposed outside the cluster
----
-apiVersion: storage.k8s.io/v1 # Define a StorageClass
-kind: StorageClass
-metadata:
-  name: retain-storageclass # Name your new StorageClass
-  namespace: bluesky-muted-words-plus # StorageClass is not namespaced, this will be ignored, but putting it for consistency
-provisioner: k8s.io/minikube-hostpath # Minikube's default provisioner
-reclaimPolicy: Retain # <-- Set reclaimPolicy here
-volumeBindingMode: Immediate
----
-apiVersion: v1
-kind: PersistentVolumeClaim # Request a persistent volume for your DB data
-metadata:
-  name: postgres-pv-claim
-  namespace: bluesky-muted-words-plus
-spec:
-  accessModes:
-    - ReadWriteOnce # Can be mounted as read-write by a single node
-  resources:
-    requests:
-      storage: 5Gi # Request 5GB of storage (adjust as needed)
-  volumeMode: Filesystem
-  storageClassName: retain-storageclass # <-- Reference the new StorageClass here
