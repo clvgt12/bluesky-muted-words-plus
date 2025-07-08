@@ -16,6 +16,9 @@ GCP_SA_EMAIL="${GCP_SA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
 GCP_SA_KEY_FILE="./${GCP_SA_NAME}-key.json" # Local path where the SA JSON key will be saved
 GCP_SECRET_NAME="google-application-credentials" # Name of the Kubernetes Secret for GCP credentials
 
+# alias kubectl
+kubectl="minikube kubectl -- "
+
 # --- Helper function for error handling ---
 handle_error() {
   echo "Error: $1" >&2
@@ -29,11 +32,11 @@ fi
 
 # --- Ensure the Kubernetes namespace exists ---
 echo "Ensuring Kubernetes namespace '$K8S_NAMESPACE' exists..."
-kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - || handle_error "Failed to ensure namespace '$K8S_NAMESPACE' exists."
+$kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | $kubectl apply -f - || handle_error "Failed to ensure namespace '$K8S_NAMESPACE' exists."
 
 # --- Delete existing PostgreSQL secret (optional, but ensures a clean slate) ---
 echo "Deleting existing secret '$POSTGRES_SECRET_NAME' in namespace '$K8S_NAMESPACE' (if it exists)..."
-kubectl delete secret "$POSTGRES_SECRET_NAME" --ignore-not-found -n "$K8S_NAMESPACE"
+$kubectl delete secret "$POSTGRES_SECRET_NAME" --ignore-not-found -n "$K8S_NAMESPACE"
 
 # --- Extract PostgreSQL variables from .env.development ---
 echo "Extracting PostgreSQL variables from $ENV_FILE..."
@@ -52,14 +55,14 @@ BSKY_APP_PASSWORD_VAL=$(awk -F'=' '/^PASSWORD=/{print $2}' "$ENV_FILE")
 
 # --- Create/Update the Kubernetes Secret for PostgreSQL ---
 echo "Creating/updating Kubernetes Secret '$POSTGRES_SECRET_NAME' in namespace '$K8S_NAMESPACE'..."
-kubectl create secret generic "$POSTGRES_SECRET_NAME" \
+$kubectl create secret generic "$POSTGRES_SECRET_NAME" \
   --from-literal=username="$POSTGRES_USER_VAL" \
   --from-literal=password="$POSTGRES_PASSWORD_VAL" \
   --from-literal=database="$POSTGRES_DB_VAL" \
   --from-literal=handle="$BSKY_HANDLE_VAL" \
   --from-literal=bsky_password="$BSKY_APP_PASSWORD_VAL" \
   --namespace="$K8S_NAMESPACE" \
-  --dry-run=client -o yaml | kubectl apply -f - || handle_error "Failed to create/update Postgres secret."
+  --dry-run=client -o yaml | $kubectl apply -f - || handle_error "Failed to create/update Postgres secret."
 
 echo "Kubernetes Secret '$POSTGRES_SECRET_NAME' created/updated successfully."
 
@@ -71,7 +74,7 @@ rm -f "$GCP_SA_KEY_FILE"
 
 # Delete existing Kubernetes Secret for GCP credentials
 echo "Deleting existing Kubernetes Secret '$GCP_SECRET_NAME' in namespace '$K8S_NAMESPACE' (if it exists)..."
-kubectl delete secret "$GCP_SECRET_NAME" --ignore-not-found -n "$K8S_NAMESPACE"
+$kubectl delete secret "$GCP_SECRET_NAME" --ignore-not-found -n "$K8S_NAMESPACE"
 
 # Create Google Cloud Service Account if it doesn't exist
 echo "Checking if Google Cloud Service Account '$GCP_SA_NAME' already exists..."
@@ -117,10 +120,10 @@ echo "JSON key created successfully: $GCP_SA_KEY_FILE"
 
 # Create Kubernetes Secret from the JSON key
 echo "Creating Kubernetes Secret '$GCP_SECRET_NAME' from '$GCP_SA_KEY_FILE' in namespace '$K8S_NAMESPACE'..."
-kubectl create secret generic "$GCP_SECRET_NAME" \
+$kubectl create secret generic "$GCP_SECRET_NAME" \
   --from-file=key.json="$GCP_SA_KEY_FILE" \
   --namespace="$K8S_NAMESPACE" \
-  --dry-run=client -o yaml | kubectl apply -f - || handle_error "Failed to create GCP credentials secret."
+  --dry-run=client -o yaml | $kubectl apply -f - || handle_error "Failed to create GCP credentials secret."
 
 echo "Kubernetes Secret '$GCP_SECRET_NAME' created successfully."
 echo "You can verify it with: kubectl get secret $GCP_SECRET_NAME -n $K8S_NAMESPACE -o yaml"
