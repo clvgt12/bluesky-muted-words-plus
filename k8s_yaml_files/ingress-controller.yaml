@@ -49,4 +49,25 @@ spec:
             name: feed-endpoint-service
             port:
               number: 80 # Flask app's service port
-
+---
+# Ingress for the /admin-portal/ path (requires rewrite)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bluesky-admin-rewrite-ingress
+  namespace: bluesky-muted-words-plus
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /$1 # Apply rewrite-target here for this specific path
+spec:
+  rules:
+  - host: minikube.lan
+    http:
+      paths:
+      - path: /admin-portal/(.*) # Path for the user list tool, captures everything after /admin-portal/
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: user-list-tool-service
+            port:
+              number: 8501
